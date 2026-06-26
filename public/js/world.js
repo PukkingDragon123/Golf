@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { tex, pbrMaterial } from './textures.js';
+import { mergeGeometries } from './utils.js';
 
 const C = CONFIG.col;
 
@@ -138,6 +139,98 @@ export function buildWorld(scene, assets, renderer) {
   ac.position.set(half - 5, roofY + 1.2 + 1.5, -(half - 5));
   ac.castShadow = true; ac.receiveShadow = true;
   scene.add(ac);
+
+  // =====================================================================
+  // v3 — decorate the tower into a clearly THREE-FLOOR building.
+  // All decoration lives BELOW the roof (facade trim) or low at the back
+  // corners (roof clutter) so the elevated chase camera still clears the
+  // parapet and sees the perimeter ring + street horde. Rooftop height,
+  // footprint, parapet and ramp are untouched (FROZEN gameplay geometry).
+  // Each group is merged into ONE mesh so the whole dressing is a few draws.
+  // =====================================================================
+  const fp = towerFootprint, hf = fp / 2;       // shaft 34, half-extent 17
+  const roofTopY = roofY + 1.2;                  // 9.2 — walkable slab top
+  const _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _one = new THREE.Vector3(1, 1, 1);
+  const T = (geo, x, y, z, rx = 0, ry = 0, rz = 0) => {
+    _e.set(rx, ry, rz); _q.setFromEuler(_e); _v.set(x, y, z);
+    return { geo, mat4: new THREE.Matrix4().compose(_v, _q, _one) };
+  };
+  const addMerged = (parts, material, cast = true, recv = true) => {
+    const mesh = new THREE.Mesh(mergeGeometries(THREE, parts), material);
+    mesh.castShadow = cast; mesh.receiveShadow = recv; scene.add(mesh); return mesh;
+  };
+
+  // ---- concrete trim: plinth base + two floor-divider ledges (=> 3 floors) + cornice + corner pilasters ----
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x827b70, roughness: 0.92, metalness: 0.02 });
+  const trim = [
+    T(new THREE.BoxGeometry(fp + 2, 1.1, fp + 2), 0, 0.55, 0),                 // street plinth (wider base)
+    T(new THREE.BoxGeometry(fp + 0.8, 0.45, fp + 0.8), 0, roofY * 0.34, 0),     // floor line 1
+    T(new THREE.BoxGeometry(fp + 0.8, 0.45, fp + 0.8), 0, roofY * 0.67, 0),     // floor line 2
+    T(new THREE.BoxGeometry(fp + 1.4, 0.6, fp + 1.4), 0, roofY - 0.35, 0),      // crown cornice
+  ];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1])
+    trim.push(T(new THREE.BoxGeometry(1.1, roofY - 0.6, 1.1), sx * hf, roofY / 2, sz * hf)); // corner pilasters
+  // ground-floor entrance surround on the -X face
+  trim.push(T(new THREE.BoxGeometry(0.6, 3.2, 4.4), -hf - 0.2, 1.7, 6));
+  addMerged(trim, trimMat);
+
+  // ---- balcony ledges + window sills on the mid/top floors (front -Z face) ----
+  const sill = [];
+  for (const fy of [roofY * 0.5, roofY * 0.83]) for (const sx of [-1, 0, 1])
+    sill.push(T(new THREE.BoxGeometry(4.2, 0.3, 0.7), sx * 9, fy, -hf - 0.25));
+  // a small balcony rail on the front-mid floor
+  for (const sx of [-1, 1]) sill.push(T(new THREE.BoxGeometry(5, 0.9, 0.18), sx * 9, roofY * 0.5 + 0.6, -hf - 0.55));
+  addMerged(sill, trimMat);
+
+  // ---- boarded-up storefront (apocalypse): door + criss-cross planks on the -Z ground floor ----
+  const boardMat = new THREE.MeshStandardMaterial({ color: 0x6b5236, roughness: 0.85, metalness: 0.0 });
+  const boards = [
+    T(new THREE.BoxGeometry(0.3, 2.6, 3.2), -hf - 0.45, 1.5, 6),               // -X door panel
+    T(new THREE.BoxGeometry(4.6, 0.5, 0.5), 0, 2.0, -hf - 0.45, 0, 0, 0.5),     // plank /
+    T(new THREE.BoxGeometry(4.6, 0.5, 0.5), 0, 2.0, -hf - 0.45, 0, 0, -0.5),    // plank \
+    T(new THREE.BoxGeometry(4.6, 0.5, 0.5), -10, 1.6, -hf - 0.45, 0, 0, 0.5),
+    T(new THREE.BoxGeometry(4.6, 0.5, 0.5), 10, 1.6, -hf - 0.45, 0, 0, -0.5),
+  ];
+  addMerged(boards, boardMat, true, false);
+
+  // ---- metal: fire escape on +X face + low rooftop water tank & vents at the back corners ----
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0x70757b, roughness: 0.5, metalness: 0.6 });
+  const metal = [];
+  for (let f = 0; f < 3; f++) {                                                 // 3 fire-escape landings (one per floor)
+    const y = 2.2 + f * (roofY * 0.33);
+    metal.push(T(new THREE.BoxGeometry(0.18, 0.18, 3.4), hf + 0.6, y, 4));       // platform deck
+    metal.push(T(new THREE.BoxGeometry(0.12, 1.0, 3.4), hf + 0.6, y + 0.5, 4));  // outer rail
+    metal.push(T(new THREE.BoxGeometry(0.12, roofY * 0.33, 0.12), hf + 0.6, y + roofY * 0.16, 5.6)); // stringer
+  }
+  // low water tank on legs (back-right corner), top ~ AC height — never blocks the forward camera
+  const tx = -(hf - 5), tz = -(hf - 5);
+  for (const [lx, lz] of [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]])
+    metal.push(T(new THREE.CylinderGeometry(0.16, 0.16, 1.0, 6), tx + lx, roofTopY + 0.5, tz + lz));
+  metal.push(T(new THREE.CylinderGeometry(2.0, 2.0, 2.3, 16), tx, roofTopY + 2.1, tz));
+  metal.push(T(new THREE.ConeGeometry(2.1, 0.8, 16), tx, roofTopY + 3.6, tz));
+  // a couple of squat roof vents (back-left)
+  metal.push(T(new THREE.CylinderGeometry(0.5, 0.6, 1.2, 10), -(hf - 4), roofTopY + 0.6, hf - 6));
+  metal.push(T(new THREE.CylinderGeometry(0.5, 0.6, 1.2, 10), -(hf - 6.5), roofTopY + 0.6, hf - 5));
+  addMerged(metal, metalMat);
+
+  // ---- sandbag defenses stacked in the rooftop back corners (low, apocalypse decor) ----
+  const sandMat = new THREE.MeshStandardMaterial({ color: 0x9a8a5c, roughness: 0.97, metalness: 0.0 });
+  const sand = [];
+  for (const [cx, cz] of [[hf - 2, -(hf - 2)], [-(hf - 2), -(hf - 2)]]) {
+    for (let r = 0; r < 2; r++) for (let b = 0; b < 4; b++) {
+      const off = (b - 1.5) * 1.0 + (r % 2 ? 0.5 : 0);
+      sand.push(T(new THREE.BoxGeometry(0.95, 0.45, 0.65), cx + off, roofTopY + 0.22 + r * 0.42, cz));
+    }
+  }
+  addMerged(sand, sandMat, true, true);
+
+  // ---- a lit rooftop-edge sign on the -X facade (below the roofline, faces out) ----
+  const signMat = new THREE.MeshStandardMaterial({ color: CONFIG.col.pickup, emissive: CONFIG.col.pickup, emissiveIntensity: 0.9, roughness: 0.5 });
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.6, 7.5), signMat);
+  sign.position.set(-hf - 0.7, roofY - 1.6, -3); sign.castShadow = false; scene.add(sign);
+  const signFrameMat = metalMat;
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.55, 3.0, 8.0), signFrameMat);
+  frame.position.set(-hf - 0.55, roofY - 1.6, -3); scene.add(frame);
 
   // ---- instanced city skyline (one draw call) ----
   const cityMat = pbrMaterial(THREE, assets.facade, { repeat: [3, 8], roughness: 0.85, aniso });
