@@ -51,6 +51,47 @@ const r = await page.evaluate(() => {
   out.clubCycle = ctx.golf.cycleClub().label; ctx.golf.clubIndex = 0;
   { const w = {}; ctx.golf.windInfo(w); out.windOk = typeof w.mag === 'number'; }
 
+  // 0a-weapons) putter roller, slingshot rapid steel, bazugolf explosive shell
+  const countActiveBalls = () => ctx.golf.balls.reduce((n, b) => n + (b.active ? 1 : 0), 0);
+  // putter: full-power flat roll should out-carry a lofted wedge AND end up rolling on the deck
+  ctx.golf.selectWeapon('putter'); ctx.golf.aimYaw = Math.PI; ctx.golf.aimPitch = 0.1;
+  ctx.golf.charging = true; ctx.golf.power = 100; ctx.golf.updatePreview(true);
+  out.putterCarry = Math.round(Math.hypot(ctx.golf.marker.position.x - so.x, ctx.golf.marker.position.z - so.z));
+  ctx.golf.charging = false;
+  // unlock the two locked guns the way the game does (spend survivors)
+  game.survivors = 40;
+  out.lockedFirst = ctx.golf.nextLockedWeapon().id;     // expect 'sling'
+  game.buyWeapon();                                     // unlocks sling, selects it
+  out.afterBuy1 = ctx.golf.weapon.id;
+  out.lockedSecond = ctx.golf.nextLockedWeapon().id;    // expect 'bazu'
+  game.buyWeapon();                                     // unlocks bazu (+3 shells), selects it
+  out.afterBuy2 = ctx.golf.weapon.id; out.shellsAfterBuy = game.shells;
+  // slingshot: held rapid fire should emit several pellets over ~0.6s and burn balls
+  ctx.golf.selectWeapon('sling'); game.ammo = 30; const sa0 = game.ammo;
+  ctx.golf.beginFire(); for (let k = 0; k < 40; k++) ctx.golf.update(1 / 60, true); ctx.golf.endFire();
+  out.slingShots = sa0 - game.ammo;                     // expect several
+  for (let k = 0; k < 40; k++) ctx.golf.update(1 / 60, true);  // let pellets clear
+  // bazugolf fire(): consumes a shell + respects cooldown (gameplay path)
+  ctx.golf.selectWeapon('bazu'); game.shells = 4; ctx.golf._cooldown = 0;
+  const bs0 = game.shells; ctx.golf.aimYaw = Math.PI; ctx.golf.aimPitch = 0.2; ctx.golf.fire(1.0);
+  out.bazuSpent = bs0 - game.shells;                    // expect 1
+  out.bazuCooldownBlocks = (ctx.golf.fire(1.0), game.shells === bs0 - 1); // 2nd fire blocked by cooldown
+  // bazugolf detonation: inject a shell straight down onto a frozen cluster -> bigger AoE kill
+  for (let k = 0; k < 6; k++) ctx.zombies.spawn('shambler');
+  const bzc = ctx.zombies.z.filter((z) => z.alive).slice(-6);
+  bzc.forEach((z, j) => { z.x = (j - 3) * 2.2; z.zz = -34; z.speed = 0; z.hp = 1; });
+  const bk0 = ctx.zombies.aliveCount;
+  const sh = ctx.golf.balls.find((b) => !b.active);
+  sh.active = true; sh.grounded = false; sh.life = 0; sh.explosive = true; sh.bazu = true;
+  sh.drag = 1.6; sh.gravityMul = 0.8; sh.restitution = 0; sh.dmg = 5; sh.spin.set(0, 0, 0);
+  sh.mesh.material = ctx.golf.shellMat; sh.mesh.scale.setScalar(1.8); sh.mesh.visible = true;
+  sh.mesh.position.set(0, 16, -34); sh.vel.set(0, -22, 0);
+  for (let k = 0; k < 120; k++) ctx.golf.update(1 / 60, true);
+  out.bazuKills = bk0 - ctx.zombies.aliveCount;          // expect several (radius 17)
+  // restore default loadout + a fresh wave so downstream sections mirror baseline
+  ctx.golf.reset(); ctx.golf.clubIndex = 0;
+  ctx.zombies.reset(); ctx.zombies.startWave(1);
+
   // 0b) vehicle: surface regions (roof/ramp/ground) + run-over kill+score
   out.surf = [ctx.player._surfaceAt(0, 8).region, ctx.player._surfaceAt(0, 28).region, ctx.player._surfaceAt(0, 60).region];
   ctx.zombies.spawn('shambler');

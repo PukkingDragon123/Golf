@@ -78,6 +78,7 @@ export class HUD {
     const tap = (id, fn) => { const e = $(id); if (!e) return; e.addEventListener('touchstart', (ev) => { ev.preventDefault(); fn(); }, { passive: false }); e.addEventListener('click', fn); };
     tap('btn-club', () => input.touchClub());
     tap('btn-spin', () => input.touchSpin());
+    tap('btn-buy', () => input.touchBuyWeapon());
     tap('btn-build', () => input.touchBuild());
     const bo = $('btn-boost');
     if (bo) {
@@ -144,8 +145,15 @@ export class HUD {
     this.el.healthBar.style.background = hp > 50
       ? 'linear-gradient(90deg,#4dff7a,#9cff5a)'
       : hp > 25 ? 'linear-gradient(90deg,#ffc23a,#ff8a3a)' : 'linear-gradient(90deg,#ff5a3a,#ff2a2a)';
-    this.el.ammo.textContent = `${STR.hudAmmo} ${s.ammo}`;
-    this.el.ammo.classList.toggle('low', s.ammo <= 3);
+    if (s.ammoKind === 'shells') {
+      this.el.ammo.textContent = `🚀 ${s.shells ?? 0}`;
+      this.el.ammo.style.color = '#ff9a3a';
+      this.el.ammo.classList.toggle('low', (s.shells ?? 0) <= 0);
+    } else {
+      this.el.ammo.textContent = `${STR.hudAmmo} ${s.ammo}`;
+      this.el.ammo.style.color = '';
+      this.el.ammo.classList.toggle('low', s.ammo <= 3);
+    }
 
     this.el.puExp.style.display = s.explosive > 0 ? '' : 'none';
     this.el.puExp.textContent = `${POWERUPS.explosive.icon} ${s.explosive}`;
@@ -163,9 +171,14 @@ export class HUD {
 
     if (s.club && this.el.clubName) {
       this.el.clubName.textContent = `${s.clubIcon} ${s.club}`;
-      const sm = s.spin === 'back' ? STR.spinBack : s.spin === 'top' ? STR.spinTop : STR.spinNeutral;
-      this.el.spinMode.textContent = sm;
-      this.el.spinMode.style.color = s.spin === 'back' ? '#ff8a3a' : s.spin === 'top' ? '#39b6ff' : '#cabba8';
+      if (s.fireType && s.fireType !== 'normal') {
+        this.el.spinMode.textContent = '—';            // spin doesn't apply to sling/bazu
+        this.el.spinMode.style.color = '#7a7268';
+      } else {
+        const sm = s.spin === 'back' ? STR.spinBack : s.spin === 'top' ? STR.spinTop : STR.spinNeutral;
+        this.el.spinMode.textContent = sm;
+        this.el.spinMode.style.color = s.spin === 'back' ? '#ff8a3a' : s.spin === 'top' ? '#39b6ff' : '#cabba8';
+      }
     }
     if (s.wind && this.el.windArrow) {
       this.el.windArrow.style.transform = `rotate(${s.wind.angle * 180 / Math.PI}deg)`;

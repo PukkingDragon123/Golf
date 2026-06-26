@@ -63,6 +63,7 @@ export class Input {
     if (down && e.code === 'KeyM') this.handlers.mute?.();
     if (down && e.code === 'KeyC') this.handlers.cycleClub?.();
     if (down && e.code === 'KeyV') this.handlers.cycleSpin?.();
+    if (down && e.code === 'KeyG') this.handlers.buyWeapon?.();
     if (down && e.code === 'KeyR') this.handlers.toRoof?.();
     if (down && (e.code === 'KeyB' || e.code === 'Tab')) this.handlers.buildToggle?.();
     if (down && e.code === 'BracketLeft') this.handlers.buildCycle?.(-1);
@@ -76,6 +77,7 @@ export class Input {
   touchItem() { this.handlers.useItem?.(); }
   touchClub() { this.handlers.cycleClub?.(); }
   touchSpin() { this.handlers.cycleSpin?.(); }
+  touchBuyWeapon() { this.handlers.buyWeapon?.(); }
   touchBoost(down) { this._touchBoost = down; }
   touchBuild() { this.handlers.buildToggle?.(); }
 

@@ -21,8 +21,10 @@ export class Golf {
     this.charging = false;
     this.power = 0;
     this.powerDir = 1;
-    this.clubIndex = CONFIG.defaultClub;
+    this.clubIndex = CONFIG.defaultWeapon;   // index into CONFIG.WEAPONS (kept name for input compat)
     this.spinMode = 'default';        // 'default' | 'back' | 'top'
+    this._cooldown = 0;               // per-shot lockout (rapid/explosive)
+    this._held = false;               // fire button currently held (drives rapid re-arm)
 
     this.wind = new THREE.Vector3();
     this.windTarget = new THREE.Vector3();
@@ -42,18 +44,20 @@ export class Golf {
     this._pSpin = new THREE.Vector3();
     this._g = 0; // smoothed ground factor for camera
 
-    // ball pool
+    // ball pool — projectile materials (re-skinned per shot, no per-shot alloc)
     const ballMat = pbrMaterial(THREE, ctx.assets.golfball, { roughness: 0.42, metalness: 0.0 });
     const expMat = ballMat.clone();
     expMat.emissive = new THREE.Color(CONFIG.col.explosive); expMat.emissiveIntensity = 0.8;
-    this.ballMat = ballMat; this.expMat = expMat;
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.95, roughness: 0.2 });
+    const shellMat = new THREE.MeshStandardMaterial({ color: 0x555a36, metalness: 0.5, roughness: 0.5, emissive: new THREE.Color(0xff5a1a), emissiveIntensity: 0.7 });
+    this.ballMat = ballMat; this.expMat = expMat; this.steelMat = steelMat; this.shellMat = shellMat;
     const geo = new THREE.SphereGeometry(CONFIG.ballRadius, 18, 14);
     this.balls = [];
     for (let i = 0; i < CONFIG.maxBalls; i++) {
       const mesh = new THREE.Mesh(geo, ballMat);
       mesh.castShadow = true; mesh.visible = false;
       scene.add(mesh);
-      this.balls.push({ mesh, vel: new THREE.Vector3(), spin: new THREE.Vector3(), backspin: 0, sidespin: 0, drag: 1, bounces: 0, life: 0, active: false, explosive: false, grounded: false });
+      this.balls.push({ mesh, vel: new THREE.Vector3(), spin: new THREE.Vector3(), backspin: 0, sidespin: 0, drag: 1, bounces: 0, life: 0, active: false, explosive: false, bazu: false, grounded: false, gravityMul: 1, restitution: CONFIG.restitution, dmg: CONFIG.ballDamage });
     }
 
     // trajectory preview line + landing marker
@@ -72,19 +76,47 @@ export class Golf {
     scene.add(this.marker);
   }
 
-  get club() { return CONFIG.CLUBS[this.clubIndex]; }
+  get club() { return CONFIG.WEAPONS[this.clubIndex]; }   // current weapon (alias kept for HUD/snapshot)
+  get weapon() { return CONFIG.WEAPONS[this.clubIndex]; }
+  _owned() { return this.ctx.game.ownedWeapons; }
+
+  // reset a pool ball to clean defaults (zero-alloc, pool-safe)
+  _recycle(b) {
+    b.active = false; b.mesh.visible = false; b.explosive = false; b.bazu = false;
+    b.gravityMul = 1; b.restitution = CONFIG.restitution; b.dmg = CONFIG.ballDamage;
+    b.mesh.scale.setScalar(1); b.mesh.material = this.ballMat;
+  }
 
   reset() {
-    for (const b of this.balls) { b.active = false; b.mesh.visible = false; }
-    this.charging = false; this.power = 0; this.powerDir = 1;
+    for (const b of this.balls) this._recycle(b);
+    this.charging = false; this.power = 0; this.powerDir = 1; this._cooldown = 0; this._held = false;
     this.aimYaw = Math.PI; this.aimPitch = CONFIG.pitchDefault; this.aimYawVel = 0;
-    this.clubIndex = CONFIG.defaultClub; this.spinMode = 'default';
+    this.clubIndex = CONFIG.defaultWeapon; this.spinMode = 'default';
     this.wind.set(0, 0, 0); this.windTarget.set(0, 0, 0); this.windTimer = 0;
     this._g = 0;
   }
 
-  cycleClub() { this.clubIndex = (this.clubIndex + 1) % CONFIG.CLUBS.length; return this.club; }
+  // C cycles to the next OWNED weapon (locked ones are skipped)
+  cycleClub() {
+    const W = CONFIG.WEAPONS, owned = this._owned();
+    for (let n = 0; n < W.length; n++) {
+      const i = (this.clubIndex + 1 + n) % W.length;
+      if (owned.has(W[i].id)) { this.clubIndex = i; break; }
+    }
+    if (!owned.has(this.club.id)) this.clubIndex = CONFIG.defaultWeapon; // guard
+    return this.club;
+  }
+  selectWeapon(id) { const i = CONFIG.WEAPONS.findIndex((w) => w.id === id); if (i >= 0) this.clubIndex = i; return this.club; }
+  // first locked weapon in cycle order (what a buy unlocks next)
+  nextLockedWeapon() { const owned = this._owned(); return CONFIG.WEAPONS.find((w) => !owned.has(w.id)) || null; }
   cycleSpin() { this.spinMode = this.spinMode === 'default' ? 'back' : this.spinMode === 'back' ? 'top' : 'default'; return this.spinMode; }
+
+  _reserve(w) { return (w.ammoKind === 'shells') ? this.ctx.game.shells : this.ctx.game.ammo; }
+  _spend(w) {
+    const c = w.ammoCost ?? 1;
+    if (w.ammoKind === 'shells') this.ctx.game.shells = Math.max(0, this.ctx.game.shells - c);
+    else this.ctx.game.useAmmo(c);
+  }
 
   addAim(dyaw, dpitch, dt) {
     this.aimYaw -= dyaw;
@@ -128,10 +160,10 @@ export class Golf {
   windInfo(out) { out.x = this.wind.x; out.z = this.wind.z; out.mag = Math.hypot(this.wind.x, this.wind.z); out.angle = Math.atan2(this.wind.x, this.wind.z); return out; }
 
   // shared physics core for live balls AND preview (zero alloc)
-  _integrate(pos, vel, spin, dt, dragMul) {
+  _integrate(pos, vel, spin, dt, dragMul, gravMul) {
     this._vRel.copy(vel).sub(this.wind);
     const speed = this._vRel.length();
-    this._a.set(0, -CONFIG.gravity, 0);
+    this._a.set(0, -CONFIG.gravity * (gravMul ?? 1), 0);
     this._a.addScaledVector(this._vRel, -CONFIG.dragCoef * dragMul * speed);
     this._cross.crossVectors(spin, this._vRel);
     this._a.addScaledVector(this._cross, CONFIG.kMagnus);
@@ -140,78 +172,139 @@ export class Golf {
     spin.multiplyScalar(1 - CONFIG.spinDecay * dt);
   }
 
+  // fire-button edges (mouse / space / touch / pad) route through here so rapid fire can re-arm
+  beginFire() { this._held = true; if (this.weapon.fireType === 'rapid') this._tryRapid(); else this.startCharge(); }
+  endFire() { this._held = false; if (this.charging) this.releaseCharge(); }
+
   startCharge() {
-    if (this.ctx.game.ammo <= 0) { this.ctx.game.flashNoAmmo(); return; }
+    const w = this.weapon;
+    if (this._cooldown > 0) return;
+    if (this._reserve(w) < (w.ammoCost ?? 1)) { this.ctx.game.flashNoAmmo(); return; }
     this.charging = true; this.power = 0; this.powerDir = 1;
   }
   releaseCharge() { if (!this.charging) return; this.charging = false; this.fire(this.power / 100); this.power = 0; }
+  _tryRapid() {
+    const w = this.weapon;
+    if (this._cooldown > 0) return;
+    if (this._reserve(w) < (w.ammoCost ?? 1)) { this.ctx.game.flashNoAmmo(); return; }
+    this.fire(0.85);   // rapid weapons skip the meter — fixed brisk power
+  }
 
   fire(power01) {
+    const game = this.ctx.game, w = this.weapon;
+    if (this._cooldown > 0) return;
+    if (this._reserve(w) < (w.ammoCost ?? 1)) { game.flashNoAmmo(); return; }
+    this._spend(w);
+    this._cooldown = w.fireCooldown ?? 0;
+
+    const speed = lerp(w.minLaunch, w.maxLaunch, power01);
+    const pitch = clamp(this.aimPitch + w.loftBias, CONFIG.pitchMin, CONFIG.pitchMax);
+    const origin = this.ctx.player.shootOrigin;
+
+    if (w.fireType === 'explosive') this._fireExplosive(w, speed, pitch, origin);
+    else if (w.fireType === 'rapid') this._fireRapid(w, speed, pitch, origin);
+    else this._fireNormal(w, speed, pitch, origin, power01);
+
+    this.ctx.player.swing();
+    game.afterFire();
+  }
+
+  // driver / iron / wedge / putter — charged golf swing; honors explosive/multiball power-ups
+  _fireNormal(w, speed, pitch, origin, power01) {
     const game = this.ctx.game;
-    if (game.ammo <= 0) { game.flashNoAmmo(); return; }
-    game.useAmmo();
-    const club = this.club;
-    const speed = lerp(club.minLaunch, club.maxLaunch, power01);
-    const pitch = clamp(this.aimPitch + club.loftBias, CONFIG.pitchMin, CONFIG.pitchMax);
     const backRPS = this._trimBackspin();
     const sideRPS = this._sideSpinRPS();
-
     let explosive = false, multi = false;
     if (game.armed === 'explosive' && game.explosiveShots > 0) { explosive = true; game.explosiveShots--; }
     else if (game.armed === 'multiball' && game.multiballShots > 0) { multi = true; game.multiballShots--; }
     const n = multi ? CONFIG.multiballCount : 1;
-
-    const origin = this.ctx.player.shootOrigin;
+    const dmg = (w.id === 'putter') ? CONFIG.putterMowDamage : CONFIG.ballDamage;
     for (let k = 0; k < n; k++) {
       const off = multi ? (k - (n - 1) / 2) * CONFIG.multiballSpread : 0;
       this.aimVec(this._fwd, this.aimYaw + off, pitch);
       const b = this.balls.find((x) => !x.active);
       if (!b) break;
-      b.active = true; b.grounded = false; b.life = 0; b.explosive = explosive; b.bounces = 0; b.drag = club.drag;
+      b.active = true; b.grounded = false; b.life = 0; b.explosive = explosive; b.bazu = false; b.bounces = 0;
+      b.drag = w.drag; b.gravityMul = w.gravityMul ?? 1; b.restitution = w.restitution ?? CONFIG.restitution; b.dmg = dmg;
       b.backspin = backRPS; b.sidespin = sideRPS;
       this._buildSpin(b.spin, this._fwd, backRPS, sideRPS);
       b.mesh.material = explosive ? this.expMat : this.ballMat;
-      b.mesh.visible = true;
-      b.mesh.position.copy(origin);
+      b.mesh.scale.setScalar(w.ballScale ?? 1);
+      b.mesh.visible = true; b.mesh.position.copy(origin);
       b.vel.copy(this._fwd).multiplyScalar(speed);
     }
-    this.ctx.player.swing();
     this.ctx.audio.swing(power01);
     this.ctx.effects.muzzle?.(origin, this._fwd);
     this.ctx.shake.addTrauma((explosive || multi) ? CONFIG.shake.bigShotKick : CONFIG.shake.shotKick * (0.4 + 0.6 * power01));
-    game.afterFire();
+  }
+
+  // slingshot — one fast flat steel pellet, ignores spin & power-up arming
+  _fireRapid(w, speed, pitch, origin) {
+    this.aimVec(this._fwd, this.aimYaw, pitch);
+    const b = this.balls.find((x) => !x.active); if (!b) return;
+    b.active = true; b.grounded = false; b.life = 0; b.bounces = 0; b.explosive = false; b.bazu = false;
+    b.drag = w.drag; b.gravityMul = w.gravityMul; b.restitution = w.restitution; b.dmg = CONFIG.slingDamage;
+    b.backspin = 0; b.sidespin = 0; b.spin.set(0, 0, 0);
+    b.mesh.material = this.steelMat; b.mesh.scale.setScalar(w.ballScale);
+    b.mesh.visible = true; b.mesh.position.copy(origin);
+    b.vel.copy(this._fwd).multiplyScalar(speed);
+    this.ctx.audio.swing(0.3);
+    this.ctx.shake.addTrauma(CONFIG.slingTrauma);
+    this.ctx.effects.muzzle?.(origin, this._fwd);
+  }
+
+  // bazugolf — one slow fat shell, always detonates on first contact, draws a shell
+  _fireExplosive(w, speed, pitch, origin) {
+    this.aimVec(this._fwd, this.aimYaw, pitch);
+    const b = this.balls.find((x) => !x.active); if (!b) return;
+    b.active = true; b.grounded = false; b.life = 0; b.bounces = 0; b.explosive = true; b.bazu = true;
+    b.drag = w.drag; b.gravityMul = w.gravityMul; b.restitution = 0; b.dmg = CONFIG.explosionDamage;
+    b.backspin = 0; b.sidespin = 0; b.spin.set(0, 0, 0);
+    b.mesh.material = this.shellMat; b.mesh.scale.setScalar(w.ballScale);
+    b.mesh.visible = true; b.mesh.position.copy(origin);
+    b.vel.copy(this._fwd).multiplyScalar(speed);
+    this.ctx.audio.swing(1.0);
+    this.ctx.shake.addTrauma(CONFIG.shake.bigShotKick);
+    this.ctx.effects.muzzle?.(origin, this._fwd);
   }
 
   explode(pos, ball) {
     const z = this.ctx.zombies, game = this.ctx.game;
-    const killed = z.damageArea(pos, CONFIG.explosionRadius, { dmg: CONFIG.explosionDamage, dismember: true });
-    this.ctx.effects.fireball ? this.ctx.effects.fireball(pos, false) : this.ctx.effects.explosion(pos);
-    this.ctx.props?.igniteArea(pos, CONFIG.explosionRadius);
-    this.ctx.gore?.splat(pos, 2.2); this.ctx.gore?.burst(pos, 2.4, 0, 0);
+    const big = !!(ball && ball.bazu);
+    const radius = big ? CONFIG.bazuExplosionRadius : CONFIG.explosionRadius;
+    const killed = z.damageArea(pos, radius, { dmg: CONFIG.explosionDamage, dismember: true, knockback: big ? CONFIG.bazuKnockback : undefined });
+    this.ctx.effects.fireball ? this.ctx.effects.fireball(pos, big) : this.ctx.effects.explosion(pos);
+    this.ctx.props?.igniteArea(pos, radius);
+    this.ctx.gore?.splat(pos, big ? 2.8 : 2.2); this.ctx.gore?.burst(pos, big ? 3.2 : 2.4, 0, 0);
     this.ctx.audio.explosion();
-    this.ctx.shake.addTrauma(0.35); this.ctx.postfx?.boomPulse?.(); this.ctx.world?.flash?.(0.5);
+    this.ctx.shake.addTrauma(big ? CONFIG.bazuTrauma : 0.35);
+    if (big) this.ctx.shake.hitStop?.(CONFIG.bazuHitStop);
+    this.ctx.postfx?.boomPulse?.(); this.ctx.world?.flash?.(big ? 0.7 : 0.5);
     if (killed > 0) game.addScore(killed * CONFIG.scorePerKill + (killed - 1) * CONFIG.comboBonus, killed > 1);
-    if (ball) { ball.active = false; ball.mesh.visible = false; }
+    if (ball) this._recycle(ball);
   }
 
   updatePreview(visible) {
     if (!visible) { this.trajLine.visible = false; this.marker.visible = false; return; }
     this.trajLine.visible = true;
-    const club = this.club;
+    const club = this.weapon;
     const power01 = this.charging ? this.power / 100 : 0.6;
     const speed = lerp(club.minLaunch, club.maxLaunch, power01);
     const pitch = clamp(this.aimPitch + club.loftBias, CONFIG.pitchMin, CONFIG.pitchMax);
     this.aimVec(this._fwd, this.aimYaw, pitch);
-    this._buildSpin(this._pSpin, this._fwd, this._trimBackspin(), this._sideSpinRPS());
+    const spinPreview = (club.fireType === 'normal');   // sling/bazu fly spinless
+    if (spinPreview) this._buildSpin(this._pSpin, this._fwd, this._trimBackspin(), this._sideSpinRPS());
+    else this._pSpin.set(0, 0, 0);
     this._pPos.copy(this.ctx.player.shootOrigin);
     this._pVel.copy(this._fwd).multiplyScalar(speed);
+    const gravMul = club.gravityMul ?? 1;
     const dt = 1 / 60, sub = 3;   // match live integration; sub-step to cover range
     let landX = this._pPos.x, landZ = this._pPos.z, landed = false;
     for (let i = 0; i < CONFIG.trajPoints; i++) {
       if (landed) { this.trajArr[i * 3] = landX; this.trajArr[i * 3 + 1] = 0.12; this.trajArr[i * 3 + 2] = landZ; continue; }
       this.trajArr[i * 3] = this._pPos.x; this.trajArr[i * 3 + 1] = this._pPos.y; this.trajArr[i * 3 + 2] = this._pPos.z;
       for (let s2 = 0; s2 < sub; s2++) {
-        this._integrate(this._pPos, this._pVel, this._pSpin, dt, club.drag);
+        this._integrate(this._pPos, this._pVel, this._pSpin, dt, club.drag, gravMul);
         if (this._pPos.y <= CONFIG.ballRadius && this._pVel.y < 0) { landX = this._pPos.x; landZ = this._pPos.z; landed = true; break; }
       }
     }
@@ -224,11 +317,15 @@ export class Golf {
   }
 
   update(dt, playing) {
+    if (this._cooldown > 0) this._cooldown -= dt;
     if (this.charging) {
-      this.power += this.powerDir * CONFIG.powerChargeRate * dt;
+      const rate = this.weapon.chargeRate ?? CONFIG.powerChargeRate;
+      this.power += this.powerDir * rate * dt;
       if (this.power >= 100) { this.power = 100; this.powerDir = -1; }
       else if (this.power <= 0) { this.power = 0; this.powerDir = 1; }
     }
+    // held-button rapid fire (slingshot): re-arm whenever the cooldown clears
+    if (this._held && this.weapon.fireType === 'rapid' && !this.charging && this._cooldown <= 0) this._tryRapid();
     this._updateWind(dt);
 
     const z = this.ctx.zombies, eff = this.ctx.effects, game = this.ctx.game;
@@ -237,7 +334,7 @@ export class Golf {
       if (!b.active) continue;
       b.life += dt;
       const sp = b.vel.length();
-      this._integrate(b.mesh.position, b.vel, b.spin, dt, b.drag);
+      this._integrate(b.mesh.position, b.vel, b.spin, dt, b.drag, b.gravityMul);
       const decay = 1 - C.spinDecay * dt;
       b.backspin *= decay; b.sidespin *= decay;
       b.mesh.rotation.x += sp * dt * 0.3;
@@ -258,7 +355,7 @@ export class Golf {
         const hit = z.hitTest(p, C.ballRadius);
         if (hit) {
           if (b.explosive) { this.explode(p, b); continue; }
-          const died = z.hitBall(hit, p, b.vel);
+          const died = z.hitBall(hit, p, b.vel, b.dmg);
           if (died) game.addScore(C.scorePerKill, false);
           this.ctx.audio.hit();
           b.vel.multiplyScalar(died ? 0.62 : 0.45);
@@ -271,7 +368,7 @@ export class Golf {
       if (p.y <= C.ballRadius) {
         if (b.explosive) { p.y = C.ballRadius; this.explode(p, b); continue; }
         p.y = C.ballRadius;
-        b.vel.y = -b.vel.y * C.restitution;
+        b.vel.y = -b.vel.y * (b.restitution ?? C.restitution);
         const horizScale = clamp(1 - b.backspin * C.backBiteK, C.minHoriz, 1);
         b.vel.x *= horizScale; b.vel.z *= horizScale;
         if (b.backspin > C.backKickThresh && b.bounces < 2) {
@@ -289,11 +386,11 @@ export class Golf {
         const f = Math.max(0, 1 - rr * dt);
         b.vel.x *= f; b.vel.z *= f;
         b.vel.x += this.wind.x * C.rollWindK * dt; b.vel.z += this.wind.z * C.rollWindK * dt;
-        if (Math.hypot(b.vel.x, b.vel.z) < C.ballStopSpeed && Math.abs(b.vel.y) < 1.2) { b.active = false; b.mesh.visible = false; continue; }
+        if (Math.hypot(b.vel.x, b.vel.z) < C.ballStopSpeed && Math.abs(b.vel.y) < 1.2) { this._recycle(b); continue; }
       }
 
       if (b.life > C.ballMaxLife || (p.x * p.x + p.z * p.z) > C.despawnRadius * C.despawnRadius) {
-        b.active = false; b.mesh.visible = false;
+        this._recycle(b);
       }
     }
 

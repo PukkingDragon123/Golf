@@ -185,11 +185,11 @@ export class Zombies {
     return false;
   }
 
-  // normal golf ball (1 dmg, sever chance if fast)
-  hitBall(z, p, ballVel) {
+  // golf ball / pellet (damage per-weapon; sever chance if fast)
+  hitBall(z, p, ballVel, dmg = CONFIG.ballDamage) {
     const sp = ballVel.length();
     let dx = ballVel.x, dz = ballVel.z; const m = Math.hypot(dx, dz) || 1; dx /= m; dz /= m;
-    return this._damage(z, CONFIG.ballDamage, dx, dz, { dismember: sp > CONFIG.dismemberBallSpeed, knockback: 3 });
+    return this._damage(z, dmg, dx, dz, { dismember: sp > CONFIG.dismemberBallSpeed, knockback: 3 });
   }
   // turret / generic fractional damage
   damage(z, amount) { return this._damage(z, amount, 0, 0, { knockback: 1 }); }

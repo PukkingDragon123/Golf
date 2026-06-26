@@ -65,9 +65,10 @@ class Game {
     this._reset();
 
     input.setHandlers({
-      chargeStart: () => { if (this.state === 'playing' && !ctx.survivors?.buildMode) ctx.golf.startCharge(); },
-      chargeEnd: () => { if (this.state === 'playing') ctx.golf.releaseCharge(); },
+      chargeStart: () => { if (this.state === 'playing' && !ctx.survivors?.buildMode) ctx.golf.beginFire(); },
+      chargeEnd: () => { if (this.state === 'playing') ctx.golf.endFire(); },
       useItem: () => { if (this.state === 'playing') this.cycleItem(); },
+      buyWeapon: () => { if (this.state === 'playing') this.buyWeapon(); },
       pause: () => { if (this.state === 'playing' || this.state === 'paused') this.togglePause(); },
       mute: () => this.toggleMute(),
       cycleClub: () => { if (this.state === 'playing') { const c = ctx.golf.cycleClub(); hud.toast(`${c.icon} ${c.label}`, '#ffd9a0'); } },
@@ -94,6 +95,8 @@ class Game {
   _reset() {
     this.score = 0; this.wave = 0;
     this.health = CONFIG.startHealth; this.ammo = CONFIG.startAmmo;
+    this.shells = CONFIG.weaponShellsStart;
+    this.ownedWeapons = new Set(CONFIG.WEAPONS.filter((w) => w.owned).map((w) => w.id));
     this.explosiveShots = 0; this.multiballShots = 0; this.armed = 'normal';
     this._ammoAcc = 0; this.betweenWaves = false; this.waveTimer = 0;
     this.survivors = CONFIG.surv.startSurvivors;
@@ -145,8 +148,19 @@ class Game {
     this.addScore(n, this.roadkill > 0);
     this.roadkill++; this._roadkillT = CONFIG.roadkillWindow;
   }
-  useAmmo() { this.ammo = Math.max(0, this.ammo - 1); }
+  useAmmo(n = 1) { this.ammo = Math.max(0, this.ammo - n); }
   addAmmo(n) { this.ammo = Math.min(CONFIG.maxAmmo, this.ammo + n); }
+  buyWeapon() {
+    const w = ctx.golf.nextLockedWeapon();
+    if (!w) { hud.flashMsg(STR.allWeaponsOwned); return; }
+    if (this.spendSurvivors(w.cost)) {
+      this.ownedWeapons.add(w.id);
+      if (w.id === 'bazu') this.shells = Math.min(CONFIG.weaponShellsMax, this.shells + CONFIG.weaponShellsPerCrate);
+      ctx.golf.selectWeapon(w.id);
+      hud.toast(`${STR.unlockedWeapon} ${w.icon} ${w.label}`, '#' + CONFIG.unlockToastColor.toString(16).padStart(6, '0'));
+      ctx.audio.pickup();
+    } else hud.flashMsg(`${w.label} — ${w.cost} ${STR.survivorsShort}`);
+  }
   heal(n) { this.health = Math.min(CONFIG.startHealth, this.health + n); }
   damageTower(a) { this.health -= a; if (this.health <= 0) { this.health = 0; this.gameOver(); } }
   flashNoAmmo() { hud.flashMsg(STR.outOfAmmo); }
@@ -156,6 +170,7 @@ class Game {
     hud.toast(labels[type], '#' + POWERUPS[type].color.toString(16).padStart(6, '0'));
     if (type === 'explosive' && this.armed === 'normal') this.armed = 'explosive';
     if (type === 'multiball' && this.armed === 'normal') this.armed = 'multiball';
+    if (type === 'supply' && this.ownedWeapons.has('bazu')) this.shells = Math.min(CONFIG.weaponShellsMax, this.shells + CONFIG.weaponShellsPerCrate);
   }
   cycleItem() {
     const modes = ['normal'];
@@ -218,7 +233,11 @@ class Game {
       armed: this.armed, charging: ctx.golf.charging, power: ctx.golf.power,
       survivors: this.survivors,
     };
-    if (ctx.golf.club) { s.club = ctx.golf.club.label; s.clubIcon = ctx.golf.club.icon; s.spin = ctx.golf.spinMode; }
+    if (ctx.golf.weapon) {
+      const w = ctx.golf.weapon;
+      s.club = w.label; s.clubIcon = w.icon; s.spin = ctx.golf.spinMode;
+      s.fireType = w.fireType; s.ammoKind = w.ammoKind; s.shells = this.shells;
+    }
     if (ctx.golf.windInfo) { ctx.golf.windInfo(this._windOut); s.wind = this._windOut; }
     if (ctx.player.health !== undefined) { s.cartHealth = ctx.player.health; s.boost = ctx.player.boost01 ?? 0; s.damage = ctx.player.hurt || false; }
     if (ctx.survivors) { s.buildMode = ctx.survivors.buildMode; s.buildInfo = ctx.survivors.snapshotBuild(); }

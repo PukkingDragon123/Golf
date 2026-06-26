@@ -57,13 +57,25 @@ export const CONFIG = {
   windChangeMin: 5.0,
   windChangeMax: 11.0,
   windLerp: 0.4,
-  // clubs (cycled in order)
-  CLUBS: [
-    { id: 'driver', label: 'DRIVER', icon: '🏌️', minLaunch: 30, maxLaunch: 52, loftBias: -0.06, backspin: 4, drag: 0.85 },
-    { id: 'iron', label: '9-IRON', icon: '⛳', minLaunch: 22, maxLaunch: 40, loftBias: 0.10, backspin: 9, drag: 1.0 },
-    { id: 'wedge', label: 'WEDGE', icon: '🪓', minLaunch: 14, maxLaunch: 30, loftBias: 0.30, backspin: 15, drag: 1.25 },
+  // weapons (cycled in order; first 3 are the golf clubs). fireType branches fire():
+  //   'normal' = charged golf swing, 'rapid' = held tap-fire, 'explosive' = detonate-on-impact shell
+  WEAPONS: [
+    { id: 'driver', label: 'DRIVER', icon: '🏌️', minLaunch: 30, maxLaunch: 52, loftBias: -0.06, backspin: 4, drag: 0.85, gravityMul: 1.0, fireType: 'normal', chargeRate: 150, fireCooldown: 0.0, ammoCost: 1, ammoKind: 'balls', restitution: 0.42, ballScale: 1.0, look: 'ball', owned: true, cost: 0 },
+    { id: 'iron', label: '9-IRON', icon: '⛳', minLaunch: 22, maxLaunch: 40, loftBias: 0.10, backspin: 9, drag: 1.0, gravityMul: 1.0, fireType: 'normal', chargeRate: 150, fireCooldown: 0.0, ammoCost: 1, ammoKind: 'balls', restitution: 0.42, ballScale: 1.0, look: 'ball', owned: true, cost: 0 },
+    { id: 'wedge', label: 'WEDGE', icon: '🪓', minLaunch: 14, maxLaunch: 30, loftBias: 0.30, backspin: 15, drag: 1.25, gravityMul: 1.0, fireType: 'normal', chargeRate: 150, fireCooldown: 0.0, ammoCost: 1, ammoKind: 'balls', restitution: 0.42, ballScale: 1.0, look: 'ball', owned: true, cost: 0 },
+    // PUTTER: ground roller — near-zero loft, baked topspin (negative backspin), low bounce, carries & mows a lane
+    { id: 'putter', label: 'PUTTER', icon: '🥍', minLaunch: 26, maxLaunch: 46, loftBias: -0.34, backspin: -14, drag: 0.55, gravityMul: 1.0, fireType: 'normal', chargeRate: 160, fireCooldown: 0.10, ammoCost: 1, ammoKind: 'balls', restitution: 0.08, ballScale: 1.0, look: 'ball', owned: true, cost: 0 },
+    // SLINGSHOT: fast flat rapid-fire steel pellet — low gravity, quick charge, short cooldown, weak per-hit
+    { id: 'sling', label: 'SLINGSHOT', icon: '🔩', minLaunch: 46, maxLaunch: 64, loftBias: -0.02, backspin: 0, drag: 0.45, gravityMul: 0.45, fireType: 'rapid', chargeRate: 420, fireCooldown: 0.16, ammoCost: 1, ammoKind: 'balls', restitution: 0.30, ballScale: 0.5, look: 'steel', owned: false, cost: 6 },
+    // BAZUGOLF: the golf bazooka — slow heavy explosive shell, big AoE + knockback, own scarce ammo
+    { id: 'bazu', label: 'BAZUGOLF', icon: '🚀', minLaunch: 18, maxLaunch: 30, loftBias: 0.06, backspin: 0, drag: 1.6, gravityMul: 0.8, fireType: 'explosive', chargeRate: 110, fireCooldown: 0.45, ammoCost: 1, ammoKind: 'shells', restitution: 0.0, ballScale: 1.8, look: 'shell', owned: false, cost: 10 },
   ],
-  defaultClub: 0,
+  defaultWeapon: 0,
+  // weapon-system knobs
+  weaponShellsStart: 0, weaponShellsMax: 8, weaponShellsPerCrate: 3,
+  slingDamage: 0.6, putterMowDamage: 1,
+  bazuKnockback: 22, bazuExplosionRadius: 17, bazuTrauma: 0.55, bazuHitStop: 120,
+  slingTrauma: 0.05, unlockToastColor: 0x9cff5a,
 
   // ---- Cart / driving (v2 arcade + ground) ----
   cartAccel: 34,

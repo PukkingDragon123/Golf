@@ -55,8 +55,14 @@ export const STR = {
   // v2 — clubs / spin / wind
   hudWind: 'WIND',
   spinBack: 'BACKSPIN', spinNeutral: '—', spinTop: 'TOPSPIN',
-  ctrlClubDesktop: 'C — club · V — spin',
-  ctrlClubTouch: 'CLUB / SPIN — change shot',
+  ctrlClubDesktop: 'C — weapon · V — spin · G — buy gun (survivors)',
+  ctrlClubTouch: 'WEAPON / SPIN / BUY GUN — change shot',
+  // v3 — weapons
+  hudShells: 'SHELLS',
+  unlockedWeapon: 'UNLOCKED',
+  allWeaponsOwned: 'ALL WEAPONS OWNED',
+  survivorsShort: 'SURVIVORS',
+  buyWeaponLbl: 'BUY GUN',
   // v2 — cart / boost
   hudCart: 'CART', hudBoost: 'BOOST',
   gameOverCart: 'The cart was overrun.',
