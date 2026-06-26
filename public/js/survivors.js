@@ -24,9 +24,15 @@ export class Survivors {
     // ---- geometries ----
     const M = (geo, x, y, z, ry) => { const m = new THREE.Matrix4(); const q = new THREE.Quaternion(); if (ry) q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry); m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(1, 1, 1)); return { geo, mat4: m }; };
     const bodyGeo = mergeGeometries(THREE, [
-      M(new THREE.BoxGeometry(0.5, 0.9, 0.3), 0, 1.0, 0), M(new THREE.SphereGeometry(0.22, 10, 8), 0, 1.62, 0),
-      M(new THREE.BoxGeometry(0.18, 0.8, 0.18), 0.14, 0.4, 0), M(new THREE.BoxGeometry(0.18, 0.8, 0.18), -0.14, 0.4, 0),
-      M(new THREE.BoxGeometry(0.15, 0.7, 0.15), 0.34, 1.05, 0), M(new THREE.BoxGeometry(0.15, 0.7, 0.15), -0.34, 1.05, 0),
+      M(new THREE.BoxGeometry(0.5, 0.85, 0.3), 0, 1.05, 0),                                      // torso
+      M(new THREE.BoxGeometry(0.42, 0.12, 0.34), 0, 1.5, 0),                                      // collar/shoulders
+      M(new THREE.SphereGeometry(0.21, 10, 8), 0, 1.7, 0),                                        // head
+      M(new THREE.SphereGeometry(0.23, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0, 1.78, 0),        // cap dome
+      M(new THREE.BoxGeometry(0.3, 0.04, 0.2), 0, 1.78, 0.2),                                      // cap brim
+      M(new THREE.BoxGeometry(0.18, 0.8, 0.18), 0.16, 0.42, 0), M(new THREE.BoxGeometry(0.18, 0.8, 0.18), -0.16, 0.42, 0), // legs
+      M(new THREE.BoxGeometry(0.2, 0.1, 0.32), 0.16, 0.03, 0.06), M(new THREE.BoxGeometry(0.2, 0.1, 0.32), -0.16, 0.03, 0.06), // feet
+      M(new THREE.BoxGeometry(0.14, 0.72, 0.15), 0.34, 1.08, 0), M(new THREE.BoxGeometry(0.14, 0.72, 0.15), -0.34, 1.08, 0),   // arms
+      M(new THREE.BoxGeometry(0.15, 0.15, 0.15), 0.34, 0.7, 0), M(new THREE.BoxGeometry(0.15, 0.15, 0.15), -0.34, 0.7, 0),     // hands
     ]);
     const cageGeo = mergeGeometries(THREE, [
       M(new THREE.BoxGeometry(0.1, 2.2, 0.1), 0.7, 1.1, 0.7), M(new THREE.BoxGeometry(0.1, 2.2, 0.1), -0.7, 1.1, 0.7),

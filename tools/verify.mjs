@@ -197,6 +197,7 @@ const r = await page.evaluate(() => {
     b.active = true; b.grounded = false; b.life = 0; b.explosive = false;
     b.mesh.material = ctx.golf.ballMat; b.mesh.visible = true;
     b.mesh.position.set(z1.x, 30, z1.zz); b.vel.set(0, -15, 0);
+    ctx.zombies.waveActive = false; ctx.zombies.toSpawn = 0;   // freeze spawns so the count reflects only the ball kill
     const s0 = game.score, a0 = countAlive();
     for (let i = 0; i < 120; i++) game.step(1 / 60);
     ballKill = a0 - countAlive(); out.ballScoreGain = game.score - s0;

@@ -153,11 +153,11 @@ export const CONFIG = {
     shootY: 3.0,        // ball launch height in the cart (= the old hard-coded 3.0)
   },
 
-  // ---- Ammo ----
-  startAmmo: 18,
-  maxAmmo: 40,
-  ammoRegen: 0.18,
-  ammoPerSupply: 14,
+  // ---- Ammo (v3: more, faster — keep the firing fun while it gets intense) ----
+  startAmmo: 22,
+  maxAmmo: 46,
+  ammoRegen: 0.24,
+  ammoPerSupply: 16,
 
   // ---- Health (tower) ----
   startHealth: 100,
@@ -168,8 +168,8 @@ export const CONFIG = {
   zombieRadius: 1.8,
   zombieHeight: 4.4,
   zombieBaseSpeed: 3.1,
-  zombieSpeedPerWave: 0.30,
-  zombieMaxAlive: 48,
+  zombieSpeedPerWave: 0.34,
+  zombieMaxAlive: 56,
   zombieTypes: [
     { name: 'shambler', speedMul: 1.00, scale: 1.00, health: 2, gait: 'walk', weight: 0.0, tintR: 0.78, tintG: 0.86, tintB: 0.62 },
     { name: 'runner', speedMul: 1.85, scale: 0.82, health: 1, gait: 'run', weight: 0.0, tintR: 0.86, tintG: 0.88, tintB: 0.74 },
@@ -186,13 +186,13 @@ export const CONFIG = {
   dismemberBallSpeed: 30,
   headTrackMax: 0.7,
 
-  // ---- Waves ----
-  waveBaseCount: 8,
-  waveCountPerWave: 4,
-  spawnIntervalBase: 1.15,
-  spawnIntervalMin: 0.30,
-  waveBreak: 4.0,
-  surgeEvery: 4,
+  // ---- Waves (v3: bigger, faster, more frequent surges => more intense) ----
+  waveBaseCount: 10,
+  waveCountPerWave: 5,
+  spawnIntervalBase: 1.02,
+  spawnIntervalMin: 0.24,
+  waveBreak: 3.5,
+  surgeEvery: 3,
 
   // ---- Scoring ----
   scorePerKill: 10,
@@ -204,7 +204,7 @@ export const CONFIG = {
   multiballShotsPerPickup: 3,
   multiballSpread: 0.15,
   multiballCount: 5,
-  crateInterval: 12,
+  crateInterval: 10,
   crateLife: 24,
   crateCollectRadius: 4.2,
 
@@ -241,7 +241,7 @@ export const CONFIG = {
 
   // ---- Chaos props ----
   props: {
-    barrelCount: 14, carCount: 7, ringMin: 46, ringMax: 90, clusterCount: 5, clusterSpread: 6,
+    barrelCount: 17, carCount: 9, ringMin: 46, ringMax: 90, clusterCount: 6, clusterSpread: 6,
     barrelRadius: 1.3, barrelHeight: 2.6, carRadius: 2.8, carHalf: [3.2, 1.4, 1.6],
     barrelDmgRadius: 12, carDmgRadius: 16, barrelTrauma: 0.55, carTrauma: 0.8,
     barrelHitStop: 70, carHitStop: 110, chainDelayMin: 60, chainDelayMax: 180,
