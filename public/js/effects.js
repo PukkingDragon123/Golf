@@ -19,7 +19,7 @@ function softSprite() {
 export class Effects {
   constructor(scene) {
     this.scene = scene;
-    this.cap = 520;
+    this.cap = 900;
     this.pos = new Float32Array(this.cap * 3);
     this.col = new Float32Array(this.cap * 3);
     this.vel = new Float32Array(this.cap * 3);
@@ -45,7 +45,7 @@ export class Effects {
     // flash spheres + lights pool
     this.flashes = [];
     const fgeo = new THREE.SphereGeometry(1, 16, 12);
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const mesh = new THREE.Mesh(fgeo, new THREE.MeshBasicMaterial({
         color: CONFIG.col.explosive, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
       }));
@@ -99,6 +99,21 @@ export class Effects {
     this._emit(x, y, z, n, { r: 0.65, g: 0.08, b: 0.06, speed: 8 + mag * 0.4, spread: 1, life: 0.55, gravity: 22, up: 3 });
   }
   exhaust(x, y, z) { this._emit(x, y, z, 3, { r: 0.55, g: 0.55, b: 0.6, speed: 5, spread: 1, life: 0.4, gravity: -2, up: 0.5 }); }
+  muzzle(p, dir) { this._emit(p.x, p.y, p.z, 8, { r: 1, g: 0.9, b: 0.6, speed: 16, spread: 0.5, life: 0.16, gravity: 2, up: 1 }); }
+  embers(p, n) { this._emit(p.x, p.y, p.z, n, { r: 1.0, g: 0.55, b: 0.2, speed: 10, spread: 1, life: 0.7, gravity: 8, up: 4 }); }
+  smoke(p, n) { this._emit(p.x, p.y + 0.5, p.z, n, { r: 0.16, g: 0.14, b: 0.13, speed: 4, spread: 1, life: 1.2, gravity: -1.5, up: 2 }); }
+  debris(p, n) { this._emit(p.x, p.y, p.z, n, { r: 0.5, g: 0.4, b: 0.3, speed: 24, spread: 1, life: 1.0, gravity: 22, up: 6 }); }
+  fireball(p, big) {
+    const n = big ? 70 : 44;
+    this._emit(p.x, p.y, p.z, n, { r: 1.0, g: 0.5, b: 0.16, speed: big ? 34 : 26, spread: 1, life: 0.8, gravity: 14, up: 5 });
+    this._emit(p.x, p.y, p.z, big ? 20 : 14, { r: 1.0, g: 0.9, b: 0.55, speed: big ? 44 : 34, spread: 1, life: 0.45, gravity: 5, up: 7 });
+    this.smoke(p, big ? 14 : 8);
+    this.debris(p, big ? 16 : 10);
+    const f = this.flashes.find((x) => x.t < 0) || this.flashes[0];
+    f.t = 0; f.mesh.visible = true; f.mesh.position.copy(p); f.light.position.set(p.x, p.y + 2, p.z);
+    const r = this.rings.find((x) => x.t < 0) || this.rings[0];
+    r.t = 0; r.mesh.visible = true; r.mesh.position.set(p.x, 0.3, p.z);
+  }
 
   reset() {
     for (let i = 0; i < this.cap; i++) { this.life[i] = 0; this.pos[i * 3 + 1] = -9999; }

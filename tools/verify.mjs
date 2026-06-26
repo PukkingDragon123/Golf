@@ -63,6 +63,19 @@ const r = await page.evaluate(() => {
   out.runScore = game.score - rs0;
   ctx.player.returnToRoof();
 
+  // 0c) chaos props: placed + ball detonation + chain reaction
+  out.propsAlive = ctx.props.all.filter((p) => p.alive).length;
+  const bar = ctx.props.barrels.find((p) => p.alive);
+  if (bar) {
+    for (let k = 0; k < 6; k++) ctx.zombies.spawn('shambler');
+    ctx.zombies.z.filter((z) => z.alive).slice(-6).forEach((z) => { z.x = bar.x + (Math.random() - 0.5) * 5; z.zz = bar.z + (Math.random() - 0.5) * 5; z.speed = 0; });
+    const ps0 = game.score, pa0 = ctx.props.all.filter((p) => p.alive).length;
+    ctx.props.detonate(bar, 0);
+    for (let k = 0; k < 60; k++) ctx.props.update(1 / 60);
+    out.propScore = game.score - ps0;
+    out.propsDestroyed = pa0 - ctx.props.all.filter((p) => p.alive).length;
+  }
+
   // 1) spawn the wave
   for (let i = 0; i < 480; i++) game.step(1 / 60);
   out.spawned = countAlive(); out.toSpawn = ctx.zombies.toSpawn;

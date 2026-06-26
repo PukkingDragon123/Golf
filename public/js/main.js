@@ -19,6 +19,7 @@ import { Input } from './input.js';
 import { HUD } from './hud.js';
 import { PostFX, Shake } from './postfx.js';
 import { Gore } from './gore.js';
+import { Props } from './props.js';
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -47,7 +48,8 @@ ctx.player = new Player(scene, ctx);
 ctx.zombies = new Zombies(scene, ctx);
 ctx.powerups = new PowerUps(scene, ctx);
 ctx.golf = new Golf(scene, ctx);
-// ctx.gore / ctx.props / ctx.survivors added in later slices
+ctx.props = new Props(scene, ctx);
+// ctx.survivors added in a later slice
 
 const hud = new HUD();
 const input = new Input(canvas);
