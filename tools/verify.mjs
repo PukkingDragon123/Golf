@@ -80,6 +80,8 @@ const r = await page.evaluate(() => {
     ballKill = a0 - countAlive(); out.ballScoreGain = game.score - s0;
   }
   out.ballPhysicsKill = ballKill;
+  out.goreInk = Math.round(ctx.gore._ink);
+  out.goreChunkCap = ctx.gore.chunks.length;
 
   // 4) real fire() path (multiball + normal) — must not throw
   game.multiballShots = 3; game.armed = 'multiball'; ctx.golf.aimPitch = -0.5; ctx.golf.fire(0.8);
@@ -102,6 +104,9 @@ const r = await page.evaluate(() => {
   });
   for (let k = 0; k < 24; k++) ctx.zombies.update(1 / 60);    // a few frames of walk anim (frozen below)
   liveH.forEach((z) => { z.speed = 0; });
+  // lay down visible gore in the kill zone for the screenshot
+  for (let k = 0; k < 16; k++) { const a = Math.PI + (k / 16 - 0.5) * 1.6, rd = 28 + (k % 5) * 7; ctx.gore.killGore({ x: Math.sin(a) * rd, y: 1.4, z: Math.cos(a) * rd }, Math.sin(a), Math.cos(a), 2.2); }
+  ctx.gore.update(1 / 60);
   ctx.golf.aimYaw = Math.PI; ctx.golf.aimPitch = -0.34;
   for (let i = 0; i < 16; i++) ctx.golf.updateCamera(camera, 0.3);
   ctx.golf.updatePreview(true);

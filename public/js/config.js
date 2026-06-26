@@ -178,7 +178,7 @@ export const CONFIG = {
   gore: {
     particleCap: 360, particleSize: 1.1, bloodColor: 0x7a0a0a, groundY: 0.06, dropSplatChance: 0.04,
     burstBase: 9, burstSpeed: 16, decalRes: 1024, decalWorldSize: 220, decalY: 0.05,
-    splatBaseRadiusPx: 18, inkFadeThreshold: 60, fadeInterval: 0.8, fadeAlpha: 0.045,
+    splatBaseRadiusPx: 23, inkFadeThreshold: 70, fadeInterval: 0.8, fadeAlpha: 0.04,
     chunkCap: 48, chunkScale: 0.5, chunkSpeed: 7, chunkLife: 2.2, chunkGroundY: 0.32,
     chunkColor: 0x8c1414, chunksPerKill: 2,
   },

@@ -18,6 +18,7 @@ import { Golf } from './golf.js';
 import { Input } from './input.js';
 import { HUD } from './hud.js';
 import { PostFX, Shake } from './postfx.js';
+import { Gore } from './gore.js';
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -39,6 +40,7 @@ const world = buildWorld(scene, assets, renderer);
 const ctx = { assets, scene, world };
 ctx.audio = new AudioKit();
 ctx.effects = new Effects(scene);
+ctx.gore = new Gore(scene, ctx);
 ctx.shake = new Shake();
 ctx.postfx = new PostFX(renderer, scene, camera);
 ctx.player = new Player(scene, ctx);
