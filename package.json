@@ -7,9 +7,18 @@
     "serve": "npx --yes serve public -l 8000",
     "verify": "node tools/verify.mjs"
   },
-  "keywords": ["game", "threejs", "webgl", "golf", "zombies"],
+  "keywords": [
+    "game",
+    "threejs",
+    "webgl",
+    "golf",
+    "zombies"
+  ],
   "license": "MIT",
   "devDependencies": {
     "playwright-core": "^1.49.1"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
   }
 }
