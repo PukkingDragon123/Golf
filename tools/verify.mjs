@@ -57,7 +57,7 @@ const r = await page.evaluate(() => {
   const live2 = ctx.zombies.z.filter((z) => z.alive);
   let ballKill = 0;
   if (live2.length) {
-    const z1 = live2[0]; z1.speed = 0; // freeze so the ball lands on it
+    const z1 = live2[0]; z1.speed = 0; z1.hp = 1; // freeze + 1-hit so the drop kills & scores
     const b = ctx.golf.balls.find((x) => !x.active);
     b.active = true; b.grounded = false; b.life = 0; b.explosive = false;
     b.mesh.material = ctx.golf.ballMat; b.mesh.visible = true;
@@ -74,17 +74,21 @@ const r = await page.evaluate(() => {
   for (let i = 0; i < 30; i++) game.step(1 / 60);
 
   // 5) perf + visibility: force a near-full horde across the perimeter band, look out
-  for (let i = 0; i < 70; i++) ctx.zombies._spawnOne();
+  for (let i = 0; i < 70; i++) ctx.zombies.spawn();
   for (let i = 0; i < 3; i++) game.step(1 / 60);
   ctx.player.pos.set(0, ctx.player.roofTop, 0);
   ctx.player.heading = Math.PI;
   const liveH = ctx.zombies.z.filter((z) => z.alive);
   liveH.forEach((z, i) => {
-    const ang = Math.PI + ((i / liveH.length) - 0.5) * 2.2;  // wide arc toward -Z
-    const rad = 30 + (i % 8) * 8;
+    const ang = Math.PI + ((i / liveH.length) - 0.5) * 1.7;  // wide arc toward -Z
+    const rad = 22 + (i % 7) * 5;
     z.x = Math.sin(ang) * rad; z.zz = Math.cos(ang) * rad;
     z.yaw = Math.atan2(-z.x, -z.zz);
+    if (i % 6 === 0) { z.type = 2; z.scale = 1.55; }          // a few brutes for size variety
+    else if (i % 3 === 0) { z.type = 1; z.scale = 0.82; z.gait = 1; }
   });
+  for (let k = 0; k < 24; k++) ctx.zombies.update(1 / 60);    // a few frames of walk anim (frozen below)
+  liveH.forEach((z) => { z.speed = 0; });
   ctx.golf.aimYaw = Math.PI; ctx.golf.aimPitch = -0.34;
   for (let i = 0; i < 16; i++) ctx.golf.updateCamera(camera, 0.3);
   ctx.golf.updatePreview(true);

@@ -146,7 +146,7 @@ export class Golf {
 
   explode(pos, ball) {
     const z = this.ctx.zombies, eff = this.ctx.effects, game = this.ctx.game;
-    const killed = z.damageArea(pos, CONFIG.explosionRadius);
+    const killed = z.damageArea(pos, CONFIG.explosionRadius, { dmg: CONFIG.explosionDamage, dismember: true });
     eff.explosion(pos);
     this.ctx.audio.explosion();
     if (killed > 0) game.addScore(killed * CONFIG.scorePerKill + (killed - 1) * CONFIG.comboBonus, killed > 1);
@@ -180,11 +180,10 @@ export class Golf {
         const hit = z.hitTest(p, CONFIG.ballRadius);
         if (hit) {
           if (b.explosive) { this.explode(p, b); continue; }
-          z.kill(hit);
-          eff.hit(p);
+          const died = z.hitBall(hit, p, b.vel);
+          if (died) game.addScore(CONFIG.scorePerKill, false);
           this.ctx.audio.hit();
-          game.addScore(CONFIG.scorePerKill, false);
-          b.vel.multiplyScalar(0.62); // plow through, losing energy
+          b.vel.multiplyScalar(died ? 0.62 : 0.45); // plow through; brutes soak more
         }
       }
 
