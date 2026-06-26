@@ -89,10 +89,10 @@ const r = await page.evaluate(() => {
   for (let i = 0; i < 16; i++) ctx.golf.updateCamera(camera, 0.3);
   ctx.golf.updatePreview(true);
   renderer.render(scene, camera);
-  out.hordeAlive = liveH.length;
   out.drawCalls = renderer.info.render.calls;
   out.tris = renderer.info.render.triangles;
   out.finalScore = game.score; out.health = Math.round(game.health); out.state = game.state;
+  ctx.postfx.render(0.05);   // composite (bloom) for the screenshot
   return out;
 });
 console.log('RUN', JSON.stringify(r, null, 0));

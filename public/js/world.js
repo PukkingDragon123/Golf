@@ -143,5 +143,24 @@ export function buildWorld(scene, assets, renderer) {
   if (city.instanceColor) city.instanceColor.needsUpdate = true;
   scene.add(city);
 
-  return { sun, sky, roofY, half, dispose() {} };
+  // baseline for explosion light drama
+  const baseSunI = sun.intensity;
+  const baseFog = scene.fog.color.clone();
+  const boomFog = new THREE.Color(C.fog).lerp(new THREE.Color(CONFIG.grade.fogBoomColor), 1);
+  let _f = 0;
+
+  return {
+    sun, sky, roofY, half,
+    flash(a) { if (a > _f) _f = a; },
+    tick(dt) {
+      if (_f > 0.0001) {
+        _f = Math.max(0, _f - dt * 2.2);
+        sun.intensity = baseSunI + _f * 1.6;
+        scene.fog.color.copy(baseFog).lerp(boomFog, _f * 0.5);
+      } else if (sun.intensity !== baseSunI) {
+        sun.intensity = baseSunI; scene.fog.color.copy(baseFog);
+      }
+    },
+    dispose() {},
+  };
 }
