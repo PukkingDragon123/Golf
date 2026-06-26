@@ -187,6 +187,10 @@ export class Player {
       }
       const r2 = this.pos.x * this.pos.x + this.pos.z * this.pos.z, R = CONFIG.groundPlayRadius;
       if (r2 > R * R) { const inv = R / Math.sqrt(r2); this.pos.x *= inv; this.pos.z *= inv; this.speed *= 0.5; }
+    } else if (surf.region === 1) {
+      // on the ramp: keep the cart between the curbs
+      const rl = CONFIG.ramp.width / 2 - 0.5;
+      if (this.pos.x > rl || this.pos.x < -rl) { this.pos.x = clamp(this.pos.x, -rl, rl); this.lateralVel = 0; }
     }
 
     // vertical follow
@@ -199,12 +203,13 @@ export class Player {
     const rollTgt = clamp(-steer * turnAuth * spAbs * CONFIG.cartLeanGain - this.lateralVel * CONFIG.cartSkidLean, -CONFIG.cartLeanMax, CONFIG.cartLeanMax);
     const accelPitch = -clamp((this.speed - this._prevSpeed) / (dt || 0.016), -40, 40) * CONFIG.cartPitchGain;
     this._prevSpeed = this.speed;
-    const gradePitch = this._surf.region === 1 ? Math.atan2(this.roofTop, CONFIG.ramp.slopeRun) * CONFIG.ramp.side : 0;
+    // ramp slope decomposed into the cart's local pitch+roll by heading (L2)
+    const gradeMag = this._surf.region === 1 ? Math.atan2(this.roofTop, CONFIG.ramp.slopeRun) * CONFIG.ramp.side : 0;
     this.lean = damp(this.lean, rollTgt, CONFIG.cartTiltDamp, dt);
     this.pitch = damp(this.pitch, accelPitch, CONFIG.cartTiltDamp, dt);
-    this.bodyTilt.rotation.z = this.lean;
-    this.bodyTilt.rotation.x = this.pitch;
-    this.root.rotation.set(gradePitch, this.heading, 0);
+    this.bodyTilt.rotation.z = this.lean + gradeMag * Math.sin(this.heading);
+    this.bodyTilt.rotation.x = this.pitch + gradeMag * Math.cos(this.heading);
+    this.root.rotation.set(0, this.heading, 0);
 
     // wheels
     const spin = (this.speed * dt) / 0.62;
@@ -233,8 +238,8 @@ export class Player {
   runOverPass(dt) {
     if (this.region === 2) return;
     const z = this.ctx.zombies;
-    const spAbs = Math.abs(this.speed);
-    if (spAbs < CONFIG.runOverMinSpeed) return;
+    const sp = this.speed;                 // forward run-overs only (reverse is slow & safe)
+    if (sp < CONFIG.runOverMinSpeed) return;
     const rr = CONFIG.zombieRadius + CONFIG.cartHitRadius, rr2 = rr * rr;
     const nx = this.pos.x + this._fwd.x * CONFIG.cartNoseOffset;
     const nz = this.pos.z + this._fwd.z * CONFIG.cartNoseOffset;
@@ -244,7 +249,7 @@ export class Player {
       if (dx * dx + dz * dz >= rr2) continue;
       const cx = zz.x - this.pos.x, cz = zz.zz - this.pos.z;
       if (cx * this._fwd.x + cz * this._fwd.z < -1.0) continue; // behind the cart
-      this._runOver(zz, dx, dz, spAbs);
+      this._runOver(zz, dx, dz, sp);
     }
   }
 

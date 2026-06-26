@@ -137,6 +137,7 @@ class Game {
 
   addScore(n, combo) { this.score += n; if (combo) hud.toast(`COMBO +${n}`, '#ff8a3a'); }
   addSurvivors(n) { this.survivors += n; }
+  flashSurvFreed() { hud.toast(STR.survFreed, '#9cff5a'); }
   spendSurvivors(n) { if (this.survivors >= n) { this.survivors -= n; return true; } return false; }
   addShake(a) { ctx.shake.addTrauma(a); }
   onRunOver(sp01, boosted) {
@@ -249,10 +250,11 @@ let frames = 0, fpsAt = last, fps = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   let elapsed = now - last; last = now;
-  if (elapsed > 250) elapsed = STEP;
+  if (elapsed > 6 * STEP) elapsed = STEP;   // a long stall counts as one step (no post-stall fast-forward)
   const realDt = Math.min(0.05, elapsed / 1000);
 
   const tScale = ctx.shake.advance(realDt);
+  if (game.state !== 'playing') input._gamepad(realDt);   // keep gamepad edges (pause/resume/menu) alive
   if (game.state === 'playing') {
     acc += elapsed * tScale;
     let guard = 0;

@@ -71,7 +71,7 @@ export class Shake {
     this.time = 0;
     this.n = [makeNoise1D(1), makeNoise1D(7), makeNoise1D(31), makeNoise1D(101), makeNoise1D(257), makeNoise1D(523)];
   }
-  reset() { this.trauma = 0; this.hitStopT = 0; this.time = 0; }
+  reset() { this.trauma = 0; this.hitStopT = 0; this.hitStopDur = 0; this.time = 0; }
   addTrauma(amt) { this.trauma = Math.min(CONFIG.shake.traumaMax, this.trauma + amt); }
   hitStop(ms) { const d = ms / 1000; if (d > this.hitStopT) { this.hitStopT = d; this.hitStopDur = d; } }
 

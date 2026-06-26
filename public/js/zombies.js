@@ -304,35 +304,33 @@ export class Zombies {
     }
   }
 
+  // hoisted (no per-frame closure): write one part's instance matrix, hidden if detached
+  _setPart(i, detach, slot, mtx) { this.parts[slot].setMatrixAt(i, (detach & (1 << slot)) ? this._hidden : mtx); }
+
   // write the 11 part matrices for zombie i from a pose P + root frame
   _writeFK(i, z, P, rx, ry, rz, rootX, rootY, rootZ, scl) {
     const detach = z.detach;
     this._q.setFromEuler(this._e.set(rx, ry, rz));
     this._mRoot.compose(this._v.set(rootX, rootY, rootZ), this._q, this._sv.set(scl, scl, scl));
-    const set = (slot, mtx) => { this.parts[slot].setMatrixAt(i, (detach & (1 << slot)) ? this._hidden : mtx); };
 
-    set(PELVIS, this._mRoot);
-    // torso
-    this._lm(0, 0.15, 0, P.spineBend, 0, 0); this._mJoint.multiplyMatrices(this._mRoot, this._mLocal); set(TORSO, this._mJoint);
-    // head
-    this._lm(0, 1.55, 0, P.headPitch, P.headYaw, 0); this._m.multiplyMatrices(this._mJoint, this._mLocal); set(HEAD, this._m);
-    // arms
-    this._lm(0.62, 1.35, 0, P.shLp, 0, P.shLr); this._mShL.multiplyMatrices(this._mJoint, this._mLocal); set(UARML, this._mShL);
-    this._lm(0, -0.95, 0, P.elbowL, 0, 0); this._m.multiplyMatrices(this._mShL, this._mLocal); set(LARML, this._m);
-    this._lm(-0.62, 1.35, 0, P.shRp, 0, P.shRr); this._mShR.multiplyMatrices(this._mJoint, this._mLocal); set(UARMR, this._mShR);
-    this._lm(0, -0.95, 0, P.elbowR, 0, 0); this._m.multiplyMatrices(this._mShR, this._mLocal); set(LARMR, this._m);
-    // legs
-    this._lm(0.34, -0.20, 0, P.hipLp, 0, 0); this._mHipL.multiplyMatrices(this._mRoot, this._mLocal); set(ULEGL, this._mHipL);
-    this._lm(0, -1.05, 0, P.kneeL, 0, 0); this._m.multiplyMatrices(this._mHipL, this._mLocal); set(LLEGL, this._m);
-    this._lm(-0.34, -0.20, 0, P.hipRp, 0, 0); this._mHipR.multiplyMatrices(this._mRoot, this._mLocal); set(ULEGR, this._mHipR);
-    this._lm(0, -1.05, 0, P.kneeR, 0, 0); this._m.multiplyMatrices(this._mHipR, this._mLocal); set(LLEGR, this._m);
+    this._setPart(i, detach, PELVIS, this._mRoot);
+    this._lm(0, 0.15, 0, P.spineBend, 0, 0); this._mJoint.multiplyMatrices(this._mRoot, this._mLocal); this._setPart(i, detach, TORSO, this._mJoint);
+    this._lm(0, 1.55, 0, P.headPitch, P.headYaw, 0); this._m.multiplyMatrices(this._mJoint, this._mLocal); this._setPart(i, detach, HEAD, this._m);
+    this._lm(0.62, 1.35, 0, P.shLp, 0, P.shLr); this._mShL.multiplyMatrices(this._mJoint, this._mLocal); this._setPart(i, detach, UARML, this._mShL);
+    this._lm(0, -0.95, 0, P.elbowL, 0, 0); this._m.multiplyMatrices(this._mShL, this._mLocal); this._setPart(i, detach, LARML, this._m);
+    this._lm(-0.62, 1.35, 0, P.shRp, 0, P.shRr); this._mShR.multiplyMatrices(this._mJoint, this._mLocal); this._setPart(i, detach, UARMR, this._mShR);
+    this._lm(0, -0.95, 0, P.elbowR, 0, 0); this._m.multiplyMatrices(this._mShR, this._mLocal); this._setPart(i, detach, LARMR, this._m);
+    this._lm(0.34, -0.20, 0, P.hipLp, 0, 0); this._mHipL.multiplyMatrices(this._mRoot, this._mLocal); this._setPart(i, detach, ULEGL, this._mHipL);
+    this._lm(0, -1.05, 0, P.kneeL, 0, 0); this._m.multiplyMatrices(this._mHipL, this._mLocal); this._setPart(i, detach, LLEGL, this._m);
+    this._lm(-0.34, -0.20, 0, P.hipRp, 0, 0); this._mHipR.multiplyMatrices(this._mRoot, this._mLocal); this._setPart(i, detach, ULEGR, this._mHipR);
+    this._lm(0, -1.05, 0, P.kneeR, 0, 0); this._m.multiplyMatrices(this._mHipR, this._mLocal); this._setPart(i, detach, LLEGR, this._m);
   }
   _lm(ox, oy, oz, rx, ry, rz) {
     this._e.set(rx, ry, rz); this._q.setFromEuler(this._e); this._v.set(ox, oy, oz);
     this._mLocal.compose(this._v, this._q, ONE);
   }
 
-  _ragStep(z, dt) {
+  _ragStep(z, dt, i) {
     const r = z.rag, g = CONFIG.gravity, sc = z.scale;
     r.age += dt;
     r.vy -= g * dt; r.x += r.vx * dt; r.y += r.vy * dt; r.z += r.vz * dt;
@@ -351,7 +349,7 @@ export class Zombies {
     let scl = sc;
     if (r.settleT > CONFIG.ragdollSettle) {
       r.fade -= dt / CONFIG.ragdollFade; r.y -= dt * 0.5;
-      if (r.fade <= 0) { z.dying = false; z.hidden = true; this._hideZombie(this.z.indexOf(z)); return; }
+      if (r.fade <= 0) { z.dying = false; z.hidden = true; this._hideZombie(i); return; }
       scl = sc * Math.max(0, r.fade);
     }
     // build ragdoll pose = frozen + limb lag
@@ -361,7 +359,7 @@ export class Zombies {
     P.elbowL = F.elbowL + z.limbLag[4]; P.elbowR = F.elbowR + z.limbLag[4];
     P.hipLp = F.hipLp + z.limbLag[5]; P.hipRp = F.hipRp + z.limbLag[6];
     P.kneeL = F.kneeL + z.limbLag[7]; P.kneeR = F.kneeR + z.limbLag[7];
-    this._writeFK(this.z.indexOf(z), z, P, r.angle, z.yaw, 0, r.x, r.y, r.z, scl);
+    this._writeFK(i, z, P, r.angle, z.yaw, 0, r.x, r.y, r.z, scl);
   }
 
   _debrisStep(dt) {
@@ -410,7 +408,7 @@ export class Zombies {
         this._anim(z, dt);
         this._writeFK(i, z, z.pose, 0, z.yaw, z.pose.lean, z.x, HIP * z.scale + z.pose.bob, z.zz, z.scale);
       } else if (z.dying) {
-        this._ragStep(z, dt);
+        this._ragStep(z, dt, i);
       }
     }
     this._flush();

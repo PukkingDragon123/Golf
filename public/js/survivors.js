@@ -50,7 +50,7 @@ export class Survivors {
     const spotterGeo = mergeGeometries(THREE, [M(new THREE.CylinderGeometry(0.15, 0.15, 2.4, 8), 0, 1.2, 0), M(new THREE.SphereGeometry(0.42, 12, 10), 0, 2.6, 0)]);
 
     const inst = (geo, mat, n, shadow) => { const m = new THREE.InstancedMesh(geo, mat, n); m.frustumCulled = false; m.castShadow = !!shadow; m.receiveShadow = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(m); return m; };
-    this.bodyMesh = inst(bodyGeo, bodyMat, S.maxCages, true);
+    this.bodyMesh = inst(bodyGeo, bodyMat, S.maxCages, false);
     this.cageMesh = inst(cageGeo, cageMat, S.maxCages, false);
     this.padMesh = inst(padGeo, padMat, S.postCount, false);
     this.turretMesh = inst(turretGeo, turretMat, S.postCount, true);
@@ -78,6 +78,14 @@ export class Survivors {
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._e = new THREE.Euler();
     this._v = new THREE.Vector3(); this._s = new THREE.Vector3(); this._hidden = new THREE.Matrix4().makeScale(0, 0, 0);
     this._up = new THREE.Vector3(0, 1, 0);
+    this._snap = {
+      integrity: 0, turrets: 0, walls: 0, postLabel: '', status: '',
+      options: [
+        { key: 'turret', label: '', cost: 0, affordable: false, sel: false },
+        { key: 'spotter', label: '', cost: 0, affordable: false, sel: false },
+        { key: 'barricade', label: '', cost: 0, affordable: false, sel: false },
+      ],
+    };
 
     this.reset();
   }
@@ -90,7 +98,7 @@ export class Survivors {
   }
 
   onWaveStart(wave) {
-    let active = this.surv.filter((s) => s.state !== 'idle' && s.state !== 'safe').length;
+    let active = this.surv.filter((s) => s.state !== 'idle').length;
     for (let k = 0; k < S.cagesPerWave && active < S.maxActiveCages; k++) { if (this._spawnCage()) active++; }
   }
   _spawnCage() {
@@ -126,7 +134,7 @@ export class Survivors {
   damageBarricade(post, amount) {
     if (post.build !== 'barricade' || post.hp <= 0) return;
     post.hp -= amount;
-    if (post.hp <= 0) { post.hp = 0; post.build = 'empty'; post.level = 0; post.spent = 0; this.ctx.effects.dust(this._v.set(post.x, 1, post.z)); this.ctx.game && this.ctx.game.flashNoAmmo && 0; }
+    if (post.hp <= 0) { post.hp = 0; post.build = 'empty'; post.level = 0; post.spent = 0; this.ctx.effects.dust(this._v.set(post.x, 1, post.z)); this.ctx.audio.hit(); }
   }
 
   _free(s) {
@@ -202,7 +210,7 @@ export class Survivors {
     const mx = post.x, my = S.muzzleY, mz = post.z;
     let dx = t.x - mx, dz = t.zz - mz; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
     p.active = true; p.x = mx; p.y = my; p.z = mz; p.vx = dx * st.projSpeed; p.vy = 0; p.vz = dz * st.projSpeed;
-    p.life = S.projLife; p.dmg = st.damage; post.heat = 1;
+    p.life = S.projLife; p.dmg = st.damage; post.heat = 1; post.yawTurret = Math.atan2(dx, dz);
     this.ctx.audio.turretShot ? this.ctx.audio.turretShot() : 0;
   }
 
@@ -219,7 +227,7 @@ export class Survivors {
         if (near > 0) { s.threatened = true; s.clearT = 0; }
         else if (s.threatened) { s.clearT += dt; if (s.clearT >= S.clearHold) this._free(s); }
         const cdx = pl.pos.x - s.x, cdz = pl.pos.z - s.z;
-        if (cdx * cdx + cdz * cdz < S.cartRescueRadius * S.cartRescueRadius) this._free(s);
+        if (s.state === 'caged' && cdx * cdx + cdz * cdz < S.cartRescueRadius * S.cartRescueRadius) this._free(s);
       } else if (s.state === 'freeing') {
         s.freeT += dt;
         if (s.freeT >= S.freeDur) { s.state = 'running'; const d = Math.hypot(s.x, s.z) || 1; const tgt = CONFIG.rooftopSize / 2 + 3; s.homeX = s.x / d * tgt; s.homeZ = s.z / d * tgt; this.ctx.game.flashSurvFreed?.(); }
@@ -286,7 +294,6 @@ export class Survivors {
       this._q.setFromEuler(this._e.set(0, p.yaw, 0));
       this._m.compose(this._v.set(p.x, 0.1, p.z), this._q, this._s.set(1, 1, 1));
       this.padMesh.setMatrixAt(i, this._m);
-      const tQ = this._q.clone();
       this.turretMesh.setMatrixAt(i, p.build === 'turret' ? this._composePost(p, 1 + p.level * 0.12) : this._hidden);
       this.spotterMesh.setMatrixAt(i, p.build === 'spotter' ? this._composePost(p, 1) : this._hidden);
       this.wallMesh.setMatrixAt(i, p.build === 'barricade' ? this._composeWall(p) : this._hidden);
@@ -307,26 +314,26 @@ export class Survivors {
     if (this.buildMode) { const p = this.posts[this.selectedPost]; this.selRing.visible = true; this.selRing.position.set(p.x, 0.2, p.z); }
     else this.selRing.visible = false;
   }
-  _composePost(p, scl) { this._q.setFromEuler(this._e.set(0, Math.atan2(-p.x, -p.z), 0)); this._m.compose(this._v.set(p.x, 0.2, p.z), this._q, this._s.set(scl, scl, scl)); return this._m; }
+  _composePost(p, scl) { const yaw = (p.build === 'turret' && p.yawTurret != null) ? p.yawTurret : Math.atan2(-p.x, -p.z); this._q.setFromEuler(this._e.set(0, yaw, 0)); this._m.compose(this._v.set(p.x, 0.2, p.z), this._q, this._s.set(scl, scl, scl)); return this._m; }
   _composeWall(p) { this._q.setFromEuler(this._e.set(0, p.angle, 0)); this._m.compose(this._v.set(Math.sin(p.angle) * CONFIG.buildingRadius, 1.1, Math.cos(p.angle) * CONFIG.buildingRadius), this._q, this._s.set(1, 1, 1)); return this._m; }
 
   snapshotBuild() {
     let walls = 0, turrets = 0, hpSum = 0, hpMax = 0;
     for (const p of this.posts) { if (p.build === 'barricade') { walls++; hpSum += p.hp; hpMax += p.maxHP; } if (p.build === 'turret') turrets++; }
-    const integrity = hpMax > 0 ? hpSum / hpMax : 0;
-    if (!this.buildMode) return { integrity, turrets, walls };
+    const snap = this._snap;
+    snap.integrity = hpMax > 0 ? hpSum / hpMax : 0; snap.turrets = turrets; snap.walls = walls;
+    if (!this.buildMode) { snap.postLabel = ''; return snap; }
     const post = this.posts[this.selectedPost];
     const sv = this.ctx.game.survivors;
-    const opt = (key, label, cost) => ({ key, label: `${label} ${cost}🧍`, cost, affordable: sv >= cost, sel: this.pendingBuild === key });
-    const options = [
-      opt('turret', STR.buildTurret, S.turret[1].cost),
-      opt('spotter', STR.buildSpotter, S.spotterCost),
-      opt('barricade', STR.buildBarricade, S.barricadeCost),
-    ];
+    const costs = [S.turret[1].cost, S.spotterCost, S.barricadeCost];
+    const labels = [STR.buildTurret, STR.buildSpotter, STR.buildBarricade];
+    const keys = ['turret', 'spotter', 'barricade'];
+    for (let i = 0; i < 3; i++) { const o = snap.options[i]; o.cost = costs[i]; o.label = labels[i] + ' ' + costs[i] + '🧍'; o.affordable = sv >= costs[i]; o.sel = this.pendingBuild === keys[i]; }
     let status = 'EMPTY';
-    if (post.build === 'turret') status = `TURRET Lv${post.level}`;
-    else if (post.build === 'barricade') status = `BARRICADE Lv${post.level} · ${Math.round(post.hp)}hp`;
+    if (post.build === 'turret') status = 'TURRET Lv' + post.level;
+    else if (post.build === 'barricade') status = 'BARRICADE Lv' + post.level + ' · ' + Math.round(post.hp) + 'hp';
     else if (post.build === 'spotter') status = 'SPOTTER';
-    return { integrity, turrets, walls, postLabel: `${STR.buildPost} ${this.selectedPost + 1} · ${status}`, options, status };
+    snap.status = status; snap.postLabel = STR.buildPost + ' ' + (this.selectedPost + 1) + ' · ' + status;
+    return snap;
   }
 }

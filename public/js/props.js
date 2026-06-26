@@ -172,13 +172,11 @@ export class Props {
     this.ctx.shake.hitStop(car ? P.carHitStop : P.barrelHitStop);
     this.ctx.postfx?.boomPulse?.();
     this.ctx.world?.flash?.(car ? 0.7 : 0.5);
-    // chain: cook neighbours (staggered)
-    if (depth < this.all.length) {
-      for (const other of this.all) {
-        if (!other.alive || other.cooking) continue;
-        const dx = other.x - prop.x, dz = other.z - prop.z;
-        if (dx * dx + dz * dz < dmgR * dmgR) this._cook(other);
-      }
+    // chain: cook neighbours (staggered; the cooking flag prevents re-entrancy)
+    for (const other of this.all) {
+      if (!other.alive || other.cooking) continue;
+      const dx = other.x - prop.x, dz = other.z - prop.z;
+      if (dx * dx + dz * dz < dmgR * dmgR) this._cook(other);
     }
   }
 

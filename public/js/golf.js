@@ -109,7 +109,8 @@ export class Golf {
     this._right.crossVectors(fwd, UP);
     if (this._right.lengthSq() < 1e-6) this._right.set(1, 0, 0);
     this._right.normalize();
-    out.copy(this._right).multiplyScalar(-backRPS);
+    // backspin must LIFT: for fwd=+z, _right=-x, spin=-x*back -> spin×v = +y (up). (H1)
+    out.copy(this._right).multiplyScalar(backRPS);
     out.y += sideRPS;
     return out;
   }
@@ -204,15 +205,17 @@ export class Golf {
     this._buildSpin(this._pSpin, this._fwd, this._trimBackspin(), this._sideSpinRPS());
     this._pPos.copy(this.ctx.player.shootOrigin);
     this._pVel.copy(this._fwd).multiplyScalar(speed);
-    const dt = 0.045;
+    const dt = 1 / 60, sub = 3;   // match live integration; sub-step to cover range
     let landX = this._pPos.x, landZ = this._pPos.z, landed = false;
     for (let i = 0; i < CONFIG.trajPoints; i++) {
+      if (landed) { this.trajArr[i * 3] = landX; this.trajArr[i * 3 + 1] = 0.12; this.trajArr[i * 3 + 2] = landZ; continue; }
       this.trajArr[i * 3] = this._pPos.x; this.trajArr[i * 3 + 1] = this._pPos.y; this.trajArr[i * 3 + 2] = this._pPos.z;
-      if (!landed && this._pPos.y <= CONFIG.ballRadius && this._pVel.y < 0) { landX = this._pPos.x; landZ = this._pPos.z; landed = true; }
-      this._integrate(this._pPos, this._pVel, this._pSpin, dt, club.drag);
+      for (let s2 = 0; s2 < sub; s2++) {
+        this._integrate(this._pPos, this._pVel, this._pSpin, dt, club.drag);
+        if (this._pPos.y <= CONFIG.ballRadius && this._pVel.y < 0) { landX = this._pPos.x; landZ = this._pPos.z; landed = true; break; }
+      }
     }
     this.trajLine.geometry.attributes.position.needsUpdate = true;
-    this.trajLine.geometry.computeBoundingSphere();
     if (landed) {
       this.marker.visible = true; this.marker.position.set(landX, 0.15, landZ);
       this.marker.material.color.setHex(this.charging ? CONFIG.col.pickup : 0xffffff);
