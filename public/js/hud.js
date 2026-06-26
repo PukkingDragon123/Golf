@@ -22,6 +22,7 @@ export class HUD {
       clubName: $('club-name'), spinMode: $('spin-mode'), windArrow: $('wind-arrow'), windStr: $('wind-str'),
       cartWrap: $('cart-wrap'), cartBar: $('cart-bar'), boostBar: $('boost-bar'), integrityBar: $('integrity-bar'),
       vignette: $('vignette'), build: $('build'), buildPost: $('build-post'), buildTypes: $('build-types'), buildStatus: $('build-status'),
+      cartPrompt: $('cart-prompt'),
     };
     this._bannerT = null; this._toastT = null; this._msgT = null;
     this._fillText();
@@ -79,6 +80,7 @@ export class HUD {
     tap('btn-club', () => input.touchClub());
     tap('btn-spin', () => input.touchSpin());
     tap('btn-buy', () => input.touchBuyWeapon());
+    tap('btn-cart', () => input.touchCart());
     tap('btn-build', () => input.touchBuild());
     const bo = $('btn-boost');
     if (bo) {
@@ -194,6 +196,18 @@ export class HUD {
       this.el.boostBar.style.width = ((s.boost || 0) * 100) + '%';
       this.el.vignette.classList.toggle('hurt', !!s.damage);
     } else if (this.el.cartWrap) this.el.cartWrap.classList.remove('on');
+
+    // cart buy / enter / exit prompt
+    if (this.el.cartPrompt) {
+      let txt = '', dim = false;
+      if (s.mode === 'cart') txt = STR.exitCartHint;
+      else if (!s.cartOwned) { txt = `${STR.buyCartPrompt} (F) · ${s.cartCost}🧍`; dim = !s.canBuyCart; }
+      else if (s.canMount) txt = STR.mountCartPrompt;
+      this.el.cartPrompt.textContent = txt;
+      this.el.cartPrompt.style.display = txt ? '' : 'none';
+      this.el.cartPrompt.classList.toggle('dim', dim);
+    }
+
     if (s.buildInfo) { this.el.integrityBar.style.width = (s.buildInfo.integrity * 100) + '%'; this.updateBuild(s); }
   }
 

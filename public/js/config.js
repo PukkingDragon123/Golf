@@ -130,6 +130,28 @@ export const CONFIG = {
   camLookDropGround: 1.5,
   camLookAheadGround: 16,
   camMinAbove: 2.5,
+  // foot-mode camera (tighter; clamped so the perimeter ring stays visible)
+  camDistanceFoot: 12,
+  camHeightFoot: 12,
+
+  // ---- JOHN on-foot locomotion (v3) ----
+  walk: {
+    speed: 8,           // m/s top walk speed (modest vs cart's 22)
+    accel: 11,          // damp rate toward target speed (arcade-snappy)
+    turn: 13,           // heading damp rate (shortest-arc) — quick face-turn
+    cadence: 1.05,      // walkPhase advance per (m/s·s) — step frequency vs speed
+    legSwing: 0.85, kneeBend: 0.7, armSwing: 0.55,
+    bob: 0.10, lean: 0.10, torsoTwist: 0.18,
+    edgeMargin: 1.0,    // walkable roof lim = roofHalf+2 - margin (~16)
+    shootY: 2.6,        // ball launch height above pos on foot (John's hands)
+  },
+  // ---- Cart-as-upgrade (v3) ----
+  cart: {
+    cost: 4,            // price in survivor currency
+    mountRadius: 3.4,   // John must be this close to the parked cart to enter
+    parkOffset: 2.6,    // sideways offset where the cart parks on purchase / exit
+    shootY: 3.0,        // ball launch height in the cart (= the old hard-coded 3.0)
+  },
 
   // ---- Ammo ----
   startAmmo: 18,
@@ -249,6 +271,7 @@ export const CONFIG = {
     sunWarm: 0xffd9a0, skyTop: 0x4a5a6e, skyHorizon: 0xe8a766, fog: 0xd8a878,
     concrete: 0x9a958b, asphalt: 0x53504c, rust: 0x8a5a3a,
     cartWhite: 0xf2f0ea, chrome: 0xb8bcc2,
+    johnSkin: 0xc98d63, johnPolo: 0xe23b3b, johnSlacks: 0x2b2f38, johnCap: 0xff7a1a, johnShoe: 0xf2f0ea, johnGlove: 0xf4f1ea,
     zombieSkin: 0x7c8a5e, zombieCloth: 0x4a4438,
     pickup: 0xff7a1a, explosive: 0xff4a2a, multiball: 0x39b6ff, supply: 0xffc23a, health: 0x4dff7a,
     barrel: 0xc24a2a, barrelBand: 0xf0c020, carBody: 0x6a6e72,

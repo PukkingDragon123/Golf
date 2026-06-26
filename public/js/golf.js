@@ -43,6 +43,7 @@ export class Golf {
     this._pVel = new THREE.Vector3();
     this._pSpin = new THREE.Vector3();
     this._g = 0; // smoothed ground factor for camera
+    this._foot01 = 1; // smoothed on-foot factor (1 = on foot)
 
     // ball pool — projectile materials (re-skinned per shot, no per-shot alloc)
     const ballMat = pbrMaterial(THREE, ctx.assets.golfball, { roughness: 0.42, metalness: 0.0 });
@@ -93,7 +94,7 @@ export class Golf {
     this.aimYaw = Math.PI; this.aimPitch = CONFIG.pitchDefault; this.aimYawVel = 0;
     this.clubIndex = CONFIG.defaultWeapon; this.spinMode = 'default';
     this.wind.set(0, 0, 0); this.windTarget.set(0, 0, 0); this.windTimer = 0;
-    this._g = 0;
+    this._g = 0; this._foot01 = 1;
   }
 
   // C cycles to the next OWNED weapon (locked ones are skipped)
@@ -402,9 +403,12 @@ export class Golf {
     // ground factor: 0 on the roof, 1 at street level
     const groundTgt = clamp(1 - this.ctx.player.pos.y / (CONFIG.rooftopHeight + 1.2), 0, 1);
     this._g = damp(this._g, groundTgt, 6, dt);
-    const g = this._g;
-    const dist = lerp(CONFIG.camDistance, CONFIG.camDistanceGround, g);
-    const height = lerp(CONFIG.camHeight, CONFIG.camHeightGround, g);
+    this._foot01 = damp(this._foot01, this.ctx.player.onFoot ? 1 : 0, 6, dt);
+    const g = this._g, f = this._foot01;
+    // foot framing tightens the roof baseline; ground blend then takes over when driving down
+    const dist = lerp(lerp(CONFIG.camDistance, CONFIG.camDistanceFoot, f), CONFIG.camDistanceGround, g);
+    let height = lerp(lerp(CONFIG.camHeight, CONFIG.camHeightFoot, f), CONFIG.camHeightGround, g);
+    height = Math.max(height, CONFIG.camHeight * 0.7);   // never drop below parapet-clearing height
     const ahead = lerp(CONFIG.camLookAhead, CONFIG.camLookAheadGround, g);
     const lookDrop = lerp(CONFIG.camLookDrop, CONFIG.camLookDropGround, g);
     const hx = Math.sin(this.aimYaw), hz = Math.cos(this.aimYaw);

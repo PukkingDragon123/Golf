@@ -69,6 +69,7 @@ class Game {
       chargeEnd: () => { if (this.state === 'playing') ctx.golf.endFire(); },
       useItem: () => { if (this.state === 'playing') this.cycleItem(); },
       buyWeapon: () => { if (this.state === 'playing') this.buyWeapon(); },
+      cartAction: () => { if (this.state === 'playing') this.tryCart(); },
       pause: () => { if (this.state === 'playing' || this.state === 'paused') this.togglePause(); },
       mute: () => this.toggleMute(),
       cycleClub: () => { if (this.state === 'playing') { const c = ctx.golf.cycleClub(); hud.toast(`${c.icon} ${c.label}`, '#ffd9a0'); } },
@@ -161,6 +162,21 @@ class Game {
       ctx.audio.pickup();
     } else hud.flashMsg(`${w.label} — ${w.cost} ${STR.survivorsShort}`);
   }
+  buyCart() {
+    if (ctx.player.cartOwned) return false;
+    if (!this.spendSurvivors(CONFIG.cart.cost)) { hud.flashMsg(STR.cartNoFunds); return false; }
+    ctx.player.purchaseCart();
+    hud.toast(STR.cartBought, '#' + CONFIG.col.pickup.toString(16).padStart(6, '0'));
+    ctx.audio.pickup();
+    return true;
+  }
+  // F / interact: buy+drive · enter the parked cart · exit on the roof
+  tryCart() {
+    const p = ctx.player;
+    if (p.mode === 'cart') { if (!p.exitCart()) hud.flashMsg(STR.exitRoofOnly); return; }
+    if (!p.cartOwned) { if (this.buyCart()) { if (p.mountCart()) hud.toast(STR.cartMounted, '#9cff5a'); } return; }
+    if (p.mountCart()) hud.toast(STR.cartMounted, '#9cff5a'); else hud.flashMsg(STR.mountCartPrompt);
+  }
   heal(n) { this.health = Math.min(CONFIG.startHealth, this.health + n); }
   damageTower(a) { this.health -= a; if (this.health <= 0) { this.health = 0; this.gameOver(); } }
   flashNoAmmo() { hud.flashMsg(STR.outOfAmmo); }
@@ -239,7 +255,13 @@ class Game {
       s.fireType = w.fireType; s.ammoKind = w.ammoKind; s.shells = this.shells;
     }
     if (ctx.golf.windInfo) { ctx.golf.windInfo(this._windOut); s.wind = this._windOut; }
-    if (ctx.player.health !== undefined) { s.cartHealth = ctx.player.health; s.boost = ctx.player.boost01 ?? 0; s.damage = ctx.player.hurt || false; }
+    // cart bar only while driving; otherwise show the buy / enter prompt
+    s.mode = ctx.player.mode; s.cartOwned = ctx.player.cartOwned; s.cartCost = CONFIG.cart.cost;
+    if (ctx.player.mode === 'cart') { s.cartHealth = ctx.player.health; s.boost = ctx.player.boost01 ?? 0; s.damage = ctx.player.hurt || false; }
+    else {
+      s.canBuyCart = !ctx.player.cartOwned && this.survivors >= CONFIG.cart.cost;
+      s.canMount = ctx.player.cartOwned && ctx.player.nearParkedCart;
+    }
     if (ctx.survivors) { s.buildMode = ctx.survivors.buildMode; s.buildInfo = ctx.survivors.snapshotBuild(); }
     return s;
   }

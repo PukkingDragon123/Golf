@@ -115,6 +115,7 @@
   #btn-club { right:26px; bottom:214px; }
   #btn-spin { right:96px; bottom:214px; }
   #btn-buy { right:166px; bottom:214px; border-color:#9cff5a; }
+  #btn-cart { right:96px; bottom:266px; border-color:#bdffa0; }
   #btn-build { right:26px; bottom:266px; border-color:#39b6ff; }
   #btn-boost { left:172px; bottom:40px; border-color:#ffb07a; }
   #build { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:30; display:none;
@@ -130,6 +131,10 @@
   .build-chip.disabled { opacity:.4; pointer-events:none; }
   #build-status { font-size:12px; opacity:.85; letter-spacing:.04em; }
   #vignette.hurt { background:radial-gradient(ellipse at 50% 42%, rgba(0,0,0,0) 30%, rgba(150,0,0,0.45) 100%); }
+  #cart-prompt { position:absolute; left:50%; bottom:84px; transform:translateX(-50%); display:none;
+    padding:7px 16px; background:var(--panel); border:1px solid #9cff5a; border-radius:10px; backdrop-filter:blur(6px);
+    font-weight:800; font-size:14px; letter-spacing:.06em; color:#bdffa0; white-space:nowrap; }
+  #cart-prompt.dim { border-color:var(--line); color:#cabba8; opacity:.7; }
 
   /* ---------- screens ---------- */
   .screen { position:fixed; inset:0; z-index:40; display:none; flex-direction:column; align-items:center; justify-content:center;
@@ -186,6 +191,7 @@
     </div>
     <div id="power-wrap"><div id="power-bar"></div></div>
     <div id="crosshair"></div>
+    <div id="cart-prompt"></div>
     <div id="banner"></div>
     <div id="toast"></div>
     <div id="msg"></div>
@@ -196,6 +202,7 @@
       <div class="ui-btn chip" id="btn-club">CLUB</div>
       <div class="ui-btn chip" id="btn-spin">SPIN</div>
       <div class="ui-btn chip" id="btn-buy">BUY GUN</div>
+      <div class="ui-btn chip" id="btn-cart">CART</div>
       <div class="ui-btn chip" id="btn-boost">BOOST</div>
       <div class="ui-btn chip" id="btn-build">BUILD</div>
       <div class="ui-btn" id="btn-item">ITEM</div>

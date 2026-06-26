@@ -100,6 +100,7 @@ const r = await page.evaluate(() => {
 
   // 0b) vehicle: surface regions (roof/ramp/ground) + run-over kill+score
   out.surf = [ctx.player._surfaceAt(0, 8).region, ctx.player._surfaceAt(0, 28).region, ctx.player._surfaceAt(0, 60).region];
+  ctx.player.mode = 'cart'; ctx.player.cartMounted = true;   // run-over requires the cart
   ctx.zombies.spawn('shambler');
   const tz = ctx.zombies.z.find((z) => z.alive);
   tz.x = 0; tz.zz = -60; tz.speed = 0; tz.hitT = 0; tz.hp = 1;
@@ -108,7 +109,7 @@ const r = await page.evaluate(() => {
   ctx.player.runOverPass(1 / 60);
   out.ranOver = tz.dying || !tz.alive;
   out.runScore = game.score - rs0;
-  ctx.player.returnToRoof();
+  ctx.player.returnToRoof(); ctx.player.mode = 'foot'; ctx.player.cartMounted = false;
 
   // 0c) chaos props: placed + ball detonation + chain reaction
   out.propsAlive = ctx.props.all.filter((p) => p.alive).length;
@@ -145,6 +146,32 @@ const r = await page.evaluate(() => {
   game.survivors = 12; ctx.survivors.selectedPost = 3; ctx.survivors.pendingBuild = 'barricade'; ctx.survivors.confirmBuild();
   out.blockOk = ctx.survivors.blockAt(ctx.survivors.posts[3].angle).blocked;
   ctx.survivors.buildMode = false; ctx.survivors.reset();
+
+  // 0e) JOHN on foot + cart as a purchasable upgrade
+  ctx.player.reset();
+  out.startMode = ctx.player.mode;            // 'foot'
+  out.startOwned = ctx.player.cartOwned;      // false
+  // shove John toward the ramp side (+z) for 4s on foot — he must stay clamped on the roof (region 2)
+  ctx.golf.aimYaw = Math.PI;                  // forward = -z, so throttle -1 pushes +z (toward the ramp gap)
+  for (let k = 0; k < 240; k++) ctx.player.update(1 / 60, { throttle: -1, steer: 0, boost: false });
+  out.footRegion = ctx.player.region;         // must stay 2
+  out.footOnRoof = (Math.abs(ctx.player.pos.x) <= 16.5 && Math.abs(ctx.player.pos.z) <= 16.5);
+  out.walkedSomewhere = Math.abs(ctx.player.pos.z) > 9;   // actually moved
+  // run-over does nothing on foot
+  ctx.zombies.spawn('shambler'); const fz = ctx.zombies.z.filter((z) => z.alive).slice(-1)[0];
+  fz.x = ctx.player.pos.x; fz.zz = ctx.player.pos.z + 1; fz.hp = 1;
+  ctx.player.speed = 18; const fs0 = game.score; ctx.player.runOverPass(1 / 60);
+  out.footRunScore = game.score - fs0;        // 0 (no flattening on foot)
+  // buy + mount + exit the cart
+  game.survivors = 10; const sv1 = game.survivors;
+  out.bought = game.buyCart();                // true
+  out.spentSurv = sv1 - game.survivors;       // == cart.cost
+  out.ownedAfter = ctx.player.cartOwned;      // true
+  out.mounted = ctx.player.mountCart();       // true (cart parked next to John)
+  out.modeMounted = ctx.player.mode;          // 'cart'
+  out.exited = ctx.player.exitCart();         // true (on the roof)
+  out.modeExited = ctx.player.mode;           // 'foot'
+  ctx.player.reset(); ctx.zombies.reset(); ctx.zombies.startWave(1);
 
   // 1) spawn the wave
   for (let i = 0; i < 480; i++) game.step(1 / 60);
@@ -187,7 +214,8 @@ const r = await page.evaluate(() => {
   for (let i = 0; i < 70; i++) ctx.zombies.spawn();
   for (let i = 0; i < 3; i++) game.step(1 / 60);
   ctx.player.pos.set(0, ctx.player.roofTop, 0);
-  ctx.player.heading = Math.PI;
+  ctx.player.heading = Math.PI; ctx.player.footHeading = Math.PI;
+  ctx.player.update(1 / 60, { throttle: 0, steer: 0, boost: false });   // place John on the roof
   const liveH = ctx.zombies.z.filter((z) => z.alive);
   liveH.forEach((z, i) => {
     const ang = Math.PI + ((i / liveH.length) - 0.5) * 1.7;  // wide arc toward -Z
@@ -228,9 +256,11 @@ await page.evaluate(() => {
   ctx.survivors.buildMode = false;
   const cg2 = ctx.survivors.surv.find((s) => s.state === 'idle'); if (cg2) { cg2.state = 'caged'; cg2.x = 12; cg2.z = -62; cg2.cageHP = 3; }
   ctx.survivors.update(0.016);
+  ctx.player.mode = 'cart'; ctx.player.cartOwned = true; ctx.player.cartMounted = true;
   ctx.player.pos.set(8, 0, 58); ctx.player.region = 0; ctx.player.heading = Math.PI; ctx.player.speed = 0;
-  ctx.player.root.position.copy(ctx.player.pos); ctx.player.root.rotation.set(0, Math.PI, 0);
-  ctx.golf.aimYaw = Math.PI; ctx.golf.aimPitch = 0.0; ctx.golf._g = 1;
+  ctx.player.cartGroup.position.copy(ctx.player.pos); ctx.player.cartGroup.rotation.set(0, Math.PI, 0);
+  ctx.player._renderRigs(0);
+  ctx.golf.aimYaw = Math.PI; ctx.golf.aimPitch = 0.0; ctx.golf._g = 1; ctx.golf._foot01 = 0;
   for (let k = 0; k < 24; k++) ctx.golf.updateCamera(camera, 0.2);
   ctx.postfx.render(0.05);
 });

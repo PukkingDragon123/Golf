@@ -64,6 +64,7 @@ export class Input {
     if (down && e.code === 'KeyC') this.handlers.cycleClub?.();
     if (down && e.code === 'KeyV') this.handlers.cycleSpin?.();
     if (down && e.code === 'KeyG') this.handlers.buyWeapon?.();
+    if (down && e.code === 'KeyF') this.handlers.cartAction?.();
     if (down && e.code === 'KeyR') this.handlers.toRoof?.();
     if (down && (e.code === 'KeyB' || e.code === 'Tab')) this.handlers.buildToggle?.();
     if (down && e.code === 'BracketLeft') this.handlers.buildCycle?.(-1);
@@ -78,6 +79,7 @@ export class Input {
   touchClub() { this.handlers.cycleClub?.(); }
   touchSpin() { this.handlers.cycleSpin?.(); }
   touchBuyWeapon() { this.handlers.buyWeapon?.(); }
+  touchCart() { this.handlers.cartAction?.(); }
   touchBoost(down) { this._touchBoost = down; }
   touchBuild() { this.handlers.buildToggle?.(); }
 
@@ -130,6 +132,8 @@ export class Input {
     if (du && !this._padDU) this.handlers.cycleSpin?.(); this._padDU = du;
     const y = gp.buttons[3] && gp.buttons[3].pressed;
     if (y && !this._padY) this.handlers.buildToggle?.(); this._padY = y;
+    const xb = gp.buttons[2] && gp.buttons[2].pressed;
+    if (xb && !this._padX) this.handlers.cartAction?.(); this._padX = xb;
     const dd = gp.buttons[13] && gp.buttons[13].pressed;
     if (dd && !this._padDD) this.handlers.toRoof?.(); this._padDD = dd;
     if (gp.buttons[6] && gp.buttons[6].pressed) this.drive.boost = true; // LT

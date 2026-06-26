@@ -3,7 +3,7 @@
 export const STR = {
   title: 'GOLF Z',
   tagline: 'Tee off against the dead.',
-  blurb: "Stranded on a rooftop in a dead city. Charge your swing and rain golf balls down on the horde. Drive the cart to grab supply crates. Survive the waves.",
+  blurb: "You're John, stranded on a rooftop in a dead city. Charge your swing and rain golf balls on the horde. Walk the roof, rescue survivors, and buy a golf cart to drive the streets. Putter, slingshot, bazooka — survive the waves.",
 
   start: 'CLICK / TAP TO PLAY',
   startTouch: 'TAP TO PLAY',
@@ -11,13 +11,13 @@ export const STR = {
   ctrlHeadDesktop: 'CONTROLS',
   ctrlAimDesktop: 'Mouse — aim',
   ctrlPowerDesktop: 'Hold Left-Click / Space — charge & release to drive',
-  ctrlDriveDesktop: 'W A S D — drive the cart',
+  ctrlDriveDesktop: 'W A S D — walk John · F — buy / drive the cart',
   ctrlPowerupDesktop: 'Q — use power-up · P / Esc — pause',
 
   ctrlHeadTouch: 'CONTROLS',
   ctrlAimTouch: 'Drag right side — aim',
   ctrlPowerTouch: 'Hold SWING — charge, release to fire',
-  ctrlDriveTouch: 'Left pad — drive · ITEM — use power-up',
+  ctrlDriveTouch: 'Left pad — walk John · CART — buy / drive · ITEM — power-up',
 
   ctrlGamepad: 'Gamepad: left stick drive · right stick aim · RT charge/fire · A use item',
 
@@ -66,6 +66,11 @@ export const STR = {
   // v2 — cart / boost
   hudCart: 'CART', hudBoost: 'BOOST',
   gameOverCart: 'The cart was overrun.',
+  // v3 — cart as a purchasable upgrade
+  cartBought: 'CART ACQUIRED', cartMounted: "YOU'RE DRIVING",
+  cartNoFunds: 'NEED MORE SURVIVORS FOR THE CART',
+  buyCartPrompt: 'BUY CART', mountCartPrompt: 'ENTER CART  (F)',
+  exitCartHint: 'EXIT CART  (F)', exitRoofOnly: 'PARK ON THE ROOF TO EXIT',
   ctrlBoostDesktop: 'Shift — boost · R — back to roof (drive the ramp down)',
   ctrlBoostTouch: 'BOOST — nitro · drive down the ramp',
   // v2 — survivors / tower defense
