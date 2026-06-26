@@ -1,0 +1,15 @@
+{
+  "name": "golf-z",
+  "version": "1.0.0",
+  "description": "Golf Z — a 3D zombie golf survival game. Defend a rooftop by raining golf balls on the horde.",
+  "scripts": {
+    "start": "python3 -m http.server 8000 --directory public",
+    "serve": "npx --yes serve public -l 8000",
+    "verify": "node tools/verify.mjs"
+  },
+  "keywords": ["game", "threejs", "webgl", "golf", "zombies"],
+  "license": "MIT",
+  "devDependencies": {
+    "playwright-core": "^1.49.1"
+  }
+}

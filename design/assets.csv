@@ -1,0 +1,21 @@
+id,role,type,description,size/ratio,style_line_ref,source
+sky,scene backdrop skydome,background,hazy apocalyptic city skyline at golden hour,16:9 1k,STYLE_FORMULA,generate
+asphalt,street ground PBR material,texture,cracked weathered asphalt road with grit and debris,1:1 1k,STYLE_FORMULA,generate
+rooftop,rooftop platform PBR material,texture,worn rooftop concrete with tar seams and gravel,1:1 1k,STYLE_FORMULA,generate
+facade,building wall PBR material,texture,grimy concrete office tower facade with rows of dark windows,1:1 1k,STYLE_FORMULA,generate
+golfball,golf ball surface PBR,texture,white dimpled golf ball surface pattern,1:1 1k,STYLE_FORMULA,generate
+zombie,enemy billboard sprite,sprite,shambling apocalypse zombie full body front view,1:1 1k key-color,STYLE_FORMULA,generate
+zombie2,enemy billboard sprite variant,sprite,shambling apocalypse zombie variant full body front view,1:1 1k key-color,STYLE_FORMULA,generate
+crate,supply crate PBR material,texture,weathered wooden supply crate face with metal corners,1:1 1k,STYLE_FORMULA,generate
+thumbnail,deploy cover art,background,GOLF Z key art golfer on rooftop driving balls into a zombie horde at golden hour,16:9,STYLE_FORMULA,generate
+favicon,deploy icon,ui,bold icon of a white golf ball with a green zombie bite,1:1,STYLE_FORMULA,generate
+music_waves,background music loop,audio-music,tense ominous driving apocalyptic survival score instrumental,30s,mood from STYLE_FORMULA,generate
+sfx_swing,ball launch sound,audio-sfx,sharp golf club thwack with a short whoosh,1s,-,generate
+sfx_explosion,explosive ball blast,audio-sfx,punchy concussive debris explosion,3s,-,generate
+sfx_horde,zombie ambient loop,audio-sfx,low groaning shambling zombie horde drone,4s,-,generate
+sfx_hit,ball hits zombie,audio-sfx,wet heavy impact thud,1s,-,generate
+sfx_pickup,collect crate,audio-sfx,bright positive pickup chime,1s,-,generate
+cart,player vehicle,procedural-3d,white-and-chrome golf cart built from primitives,-,STYLE_FORMULA,procedural
+buildings,city and player tower,procedural-3d,boxy concrete city buildings dressed in the facade texture,-,STYLE_FORMULA,procedural
+lighting,engine lighting and fog,procedural,golden-hour directional sun warm fog and ambient derived from style,-,STYLE_FORMULA,procedural
+grain,post overlay,procedural-css,film grain and vignette overlay,-,STYLE_FORMULA,procedural
