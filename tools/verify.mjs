@@ -76,6 +76,29 @@ const r = await page.evaluate(() => {
     out.propsDestroyed = pa0 - ctx.props.all.filter((p) => p.alive).length;
   }
 
+  // 0d) survivors / tower-defense: cages, rescue, turret, barricade
+  ctx.survivors.onWaveStart(1);
+  out.cages = ctx.survivors.surv.filter((s) => s.state === 'caged').length;
+  const cg = ctx.survivors.surv.find((s) => s.state === 'caged');
+  if (cg) {
+    cg.x = 30; cg.z = 0; const sv0 = game.survivors;
+    ctx.survivors._free(cg);
+    for (let k = 0; k < 700; k++) ctx.survivors.update(1 / 60);
+    out.rescued = game.survivors - sv0;
+  }
+  game.survivors = 12; ctx.survivors.buildMode = true; ctx.survivors.selectedPost = 0; ctx.survivors.pendingBuild = 'turret';
+  ctx.survivors.confirmBuild();
+  out.turretBuilt = ctx.survivors.posts[0].build;
+  ctx.zombies.spawn('shambler');
+  const tzz = ctx.zombies.z.filter((z) => z.alive).slice(-1)[0];
+  const p0 = ctx.survivors.posts[0]; tzz.x = p0.x + 5; tzz.zz = p0.z; tzz.speed = 0; tzz.hp = 6;
+  const hp0 = tzz.hp;
+  for (let k = 0; k < 150; k++) ctx.survivors.update(1 / 60);
+  out.turretWorks = (hp0 - tzz.hp) > 0 || !tzz.alive;
+  game.survivors = 12; ctx.survivors.selectedPost = 3; ctx.survivors.pendingBuild = 'barricade'; ctx.survivors.confirmBuild();
+  out.blockOk = ctx.survivors.blockAt(ctx.survivors.posts[3].angle).blocked;
+  ctx.survivors.buildMode = false; ctx.survivors.reset();
+
   // 1) spawn the wave
   for (let i = 0; i < 480; i++) game.step(1 / 60);
   out.spawned = countAlive(); out.toSpawn = ctx.zombies.toSpawn;
@@ -150,7 +173,15 @@ await page.evaluate(() => {
   const { ctx, game, hud, camera } = window.GOLFZ;
   game.state = 'playing'; game.health = 1000; hud.startPlaying();
   let i = 0; for (const z of ctx.zombies.z) { if (!z.alive) continue; const a = (i++ / 9) * Math.PI * 2, rd = 46 + (i % 4) * 7; z.x = Math.sin(a) * rd; z.zz = Math.cos(a) * rd; z.speed = 0; z.atBase = false; }
-  ctx.player.pos.set(8, 0, 56); ctx.player.region = 0; ctx.player.heading = Math.PI; ctx.player.speed = 0;
+  // stage tower defense: turrets + barricade + a caged survivor, all in -Z view
+  ctx.survivors.reset(); game.survivors = 30; ctx.survivors.buildMode = true;
+  ctx.survivors.selectedPost = 5; ctx.survivors.pendingBuild = 'turret'; ctx.survivors.confirmBuild(); ctx.survivors.confirmBuild();
+  ctx.survivors.selectedPost = 6; ctx.survivors.confirmBuild();
+  ctx.survivors.selectedPost = 7; ctx.survivors.pendingBuild = 'barricade'; ctx.survivors.confirmBuild();
+  ctx.survivors.buildMode = false;
+  const cg2 = ctx.survivors.surv.find((s) => s.state === 'idle'); if (cg2) { cg2.state = 'caged'; cg2.x = 12; cg2.z = -62; cg2.cageHP = 3; }
+  ctx.survivors.update(0.016);
+  ctx.player.pos.set(8, 0, 58); ctx.player.region = 0; ctx.player.heading = Math.PI; ctx.player.speed = 0;
   ctx.player.root.position.copy(ctx.player.pos); ctx.player.root.rotation.set(0, Math.PI, 0);
   ctx.golf.aimYaw = Math.PI; ctx.golf.aimPitch = 0.0; ctx.golf._g = 1;
   for (let k = 0; k < 24; k++) ctx.golf.updateCamera(camera, 0.2);

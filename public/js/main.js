@@ -20,6 +20,7 @@ import { HUD } from './hud.js';
 import { PostFX, Shake } from './postfx.js';
 import { Gore } from './gore.js';
 import { Props } from './props.js';
+import { Survivors } from './survivors.js';
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -48,8 +49,8 @@ ctx.player = new Player(scene, ctx);
 ctx.zombies = new Zombies(scene, ctx);
 ctx.powerups = new PowerUps(scene, ctx);
 ctx.golf = new Golf(scene, ctx);
+ctx.survivors = new Survivors(scene, ctx);
 ctx.props = new Props(scene, ctx);
-// ctx.survivors added in a later slice
 
 const hud = new HUD();
 const input = new Input(canvas);
@@ -76,6 +77,8 @@ class Game {
       buildCycle: (d) => { if (this.state === 'playing') ctx.survivors?.cycleBuild(d); },
       buildConfirm: () => { if (this.state === 'playing') ctx.survivors?.confirmBuild(); },
       buildSell: () => { if (this.state === 'playing') ctx.survivors?.sellSelected(); },
+      stepPost: (d) => { if (this.state === 'playing') ctx.survivors?.stepPost(d); },
+      buildPick: (i) => { if (this.state === 'playing') ctx.survivors?.pickBuild(i); },
     });
     hud.setCallbacks({
       start: () => this.start(), resume: () => this.resume(),

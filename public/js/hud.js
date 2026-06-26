@@ -87,8 +87,8 @@ export class HUD {
       bo.addEventListener('touchcancel', br, { passive: false });
       bo.addEventListener('mousedown', bp); bo.addEventListener('mouseup', br);
     }
-    tap('build-prev', () => input.handlers.buildCycle?.(-1));
-    tap('build-next', () => input.handlers.buildCycle?.(1));
+    tap('build-prev', () => input.handlers.stepPost?.(-1));
+    tap('build-next', () => input.handlers.stepPost?.(1));
     if (this.el.buildTypes) this.el.buildTypes.addEventListener('click', (e) => {
       const c = e.target.closest('.build-chip'); if (c) input.handlers.buildPick?.(+c.dataset.i);
     });
