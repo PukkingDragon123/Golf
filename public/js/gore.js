@@ -105,6 +105,21 @@ export class Gore {
   splat(pos, size = 1) { this.splatXZ(pos.x, pos.z, size); }
   dropSplat(pos) { if (Math.random() < 0.4) this.splatXZ(pos.x, pos.z, 0.3); }
 
+  // arterial gush from a fresh stump: a tight upward+directional jet of dark blood
+  spurt(pos, dx = 0, dz = 0, amount = 1) {
+    const n = Math.round(G.spurtN * Math.min(2, amount));
+    const m = Math.hypot(dx, dz) || 1; const ndx = dx / m, ndz = dz / m;
+    const sp = G.spurtSpeed * (0.7 + amount * 0.3);
+    for (let k = 0; k < n; k++) {
+      const i = this.cursor; this.cursor = (this.cursor + 1) % this.cap;
+      this.pos[i * 3] = pos.x; this.pos[i * 3 + 1] = pos.y; this.pos[i * 3 + 2] = pos.z;
+      const jx = ndx + (Math.random() - 0.5) * 0.5, jz = ndz + (Math.random() - 0.5) * 0.5;
+      const s = sp * (0.6 + Math.random() * 0.8);
+      this.vel[i * 3] = jx * s; this.vel[i * 3 + 1] = 5 + Math.random() * s * 0.8; this.vel[i * 3 + 2] = jz * s;
+      this.life[i] = this.maxLife[i] = 0.6 * (0.7 + Math.random() * 0.6);
+    }
+  }
+
   splatXZ(wx, wz, size) {
     if (wx < -this.half || wx > this.half || wz < -this.half || wz > this.half) return;
     const u = (wx + this.half) / this.S, v = (wz + this.half) / this.S;

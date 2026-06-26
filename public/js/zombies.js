@@ -48,6 +48,16 @@ export class Zombies {
       return m;
     });
 
+    // ---- exposed-bone stubs (1 draw call): up to 5 wound stumps per zombie
+    //   slots: 0=neck, 1=L-arm, 2=R-arm, 3=L-leg, 4=R-leg. Shown only where a limb is severed.
+    this.STUBS = 5;
+    const gBone = new THREE.CylinderGeometry(CONFIG.gore.stubR0, CONFIG.gore.stubR1, CONFIG.gore.stubLen, 6);
+    const boneMat = new THREE.MeshStandardMaterial({ color: CONFIG.gore.boneColor, roughness: 0.7, metalness: 0.0 });
+    this.boneMesh = new THREE.InstancedMesh(gBone, boneMat, this.max * this.STUBS);
+    this.boneMesh.frustumCulled = false; this.boneMesh.castShadow = false; this.boneMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    scene.add(this.boneMesh);
+    this._bonesDirty = false;
+
     // ---- debris pool (one instanced mesh) ----
     const gChunk = new THREE.BoxGeometry(0.5, 0.5, 0.5);
     this.debrisMesh = new THREE.InstancedMesh(gChunk, mat, CONFIG.maxDebris);
@@ -76,6 +86,9 @@ export class Zombies {
     this._m = new THREE.Matrix4(); this._mRoot = new THREE.Matrix4(); this._mJoint = new THREE.Matrix4();
     this._mShL = new THREE.Matrix4(); this._mShR = new THREE.Matrix4(); this._mHipL = new THREE.Matrix4();
     this._mHipR = new THREE.Matrix4(); this._mLocal = new THREE.Matrix4();
+    // kept joint frames for bone-stub placement
+    this._mNeck = new THREE.Matrix4(); this._mElbowL = new THREE.Matrix4(); this._mElbowR = new THREE.Matrix4();
+    this._mKneeL = new THREE.Matrix4(); this._mKneeR = new THREE.Matrix4();
     this._q = new THREE.Quaternion(); this._e = new THREE.Euler(); this._v = new THREE.Vector3(); this._sv = new THREE.Vector3();
     this._col = new THREE.Color(); this._p = new THREE.Vector3();
     this._hidden = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -98,11 +111,13 @@ export class Zombies {
     for (const d of this.debris) { d.active = false; }
     for (let i = 0; i < CONFIG.maxDebris; i++) this.debrisMesh.setMatrixAt(i, this._hidden);
     this._flush();
+    this.boneMesh.instanceMatrix.needsUpdate = true; this._bonesDirty = false;
     this.debrisMesh.instanceMatrix.needsUpdate = true;
     this.waveActive = false; this.toSpawn = 0;
   }
 
-  _hideZombie(i) { for (let s = 0; s < 11; s++) this.parts[s].setMatrixAt(i, this._hidden); }
+  _hideZombie(i) { for (let s = 0; s < 11; s++) this.parts[s].setMatrixAt(i, this._hidden); this._hideBones(i); }
+  _hideBones(i) { const b = i * this.STUBS; for (let k = 0; k < this.STUBS; k++) this.boneMesh.setMatrixAt(b + k, this._hidden); this._bonesDirty = true; }
   _flush() { for (let s = 0; s < 11; s++) this.parts[s].instanceMatrix.needsUpdate = true; }
 
   startWave(wave) {
@@ -140,6 +155,7 @@ export class Zombies {
     z.phase = this.rng() * Math.PI * 2;
     z.yaw = Math.atan2(-z.x, -z.zz);
     const i = this.z.indexOf(z);
+    this._hideBones(i);   // fresh body: no severed limbs
     const v = 0.85 + this.rng() * 0.25;
     this._col.setRGB(t.tintR * v, t.tintG * v, t.tintB * v);
     for (let s = 0; s < 11; s++) this.parts[s].setColorAt(i, this._col);
@@ -234,7 +250,7 @@ export class Zombies {
     const along = dx * Math.sin(z.yaw) + dz * Math.cos(z.yaw);
     r.angVel = (along >= 0 ? 1 : -1) * (2.2 + imp * 0.15) * (opts.flat ? 1.8 : 1);
     z.limbLag.fill(0); z.limbVel.fill(0);
-    if (opts.dismember) this._dismember(z, dx, dz, opts.flat ? 2 : 1 + (this.rng() < 0.5 ? 1 : 0));
+    if (opts.dismember) this._dismember(z, dx, dz, opts.flat ? 3 : 1 + (this.rng() < 0.6 ? 1 : 0) + (this.rng() < 0.25 ? 1 : 0));
   }
 
   _dismember(z, dx, dz, count) {
@@ -244,6 +260,9 @@ export class Zombies {
       const slot = leaves[k]; const bit = 1 << slot;
       if (z.detach & bit) continue;
       z.detach |= bit; done++;
+      // a whole-arm sever takes the forearm with it (no floating forearm)
+      if (slot === UARML) z.detach |= (1 << LARML);
+      if (slot === UARMR) z.detach |= (1 << LARMR);
       const d = this.debris.find((x) => !x.active);
       if (!d) continue;
       d.active = true; d.s = CONFIG.gore.chunkScale * z.scale * (slot === HEAD ? 1.0 : 1.4);
@@ -254,7 +273,9 @@ export class Zombies {
       d.rx = d.ry = d.rz = 0; d.life = CONFIG.ragdollLife + this.rng();
       this.ctx.gore?.chunk(this._p.set(d.x, d.y, d.z), d.vx, d.vy, d.vz);
     }
-    this.ctx.gore?.burst(this._p.set(z.x, 2.2 * z.scale, z.zz), 1.6, dx, dz);
+    // heavy wound: a thick blood burst + an arterial spurt from the stump
+    this.ctx.gore?.burst(this._p.set(z.x, 2.2 * z.scale, z.zz), 2.2, dx, dz);
+    this.ctx.gore?.spurt?.(this._p.set(z.x, 2.4 * z.scale, z.zz), dx, dz, 1.4);
   }
 
   // ---------- animation ----------
@@ -316,14 +337,30 @@ export class Zombies {
     this._setPart(i, detach, PELVIS, this._mRoot);
     this._lm(0, 0.15, 0, P.spineBend, 0, 0); this._mJoint.multiplyMatrices(this._mRoot, this._mLocal); this._setPart(i, detach, TORSO, this._mJoint);
     this._lm(0, 1.55, 0, P.headPitch, P.headYaw, 0); this._m.multiplyMatrices(this._mJoint, this._mLocal); this._setPart(i, detach, HEAD, this._m);
+    if (detach) this._mNeck.copy(this._m);
     this._lm(0.62, 1.35, 0, P.shLp, 0, P.shLr); this._mShL.multiplyMatrices(this._mJoint, this._mLocal); this._setPart(i, detach, UARML, this._mShL);
     this._lm(0, -0.95, 0, P.elbowL, 0, 0); this._m.multiplyMatrices(this._mShL, this._mLocal); this._setPart(i, detach, LARML, this._m);
+    if (detach) this._mElbowL.copy(this._m);
     this._lm(-0.62, 1.35, 0, P.shRp, 0, P.shRr); this._mShR.multiplyMatrices(this._mJoint, this._mLocal); this._setPart(i, detach, UARMR, this._mShR);
     this._lm(0, -0.95, 0, P.elbowR, 0, 0); this._m.multiplyMatrices(this._mShR, this._mLocal); this._setPart(i, detach, LARMR, this._m);
+    if (detach) this._mElbowR.copy(this._m);
     this._lm(0.34, -0.20, 0, P.hipLp, 0, 0); this._mHipL.multiplyMatrices(this._mRoot, this._mLocal); this._setPart(i, detach, ULEGL, this._mHipL);
     this._lm(0, -1.05, 0, P.kneeL, 0, 0); this._m.multiplyMatrices(this._mHipL, this._mLocal); this._setPart(i, detach, LLEGL, this._m);
+    if (detach) this._mKneeL.copy(this._m);
     this._lm(-0.34, -0.20, 0, P.hipRp, 0, 0); this._mHipR.multiplyMatrices(this._mRoot, this._mLocal); this._setPart(i, detach, ULEGR, this._mHipR);
     this._lm(0, -1.05, 0, P.kneeR, 0, 0); this._m.multiplyMatrices(this._mHipR, this._mLocal); this._setPart(i, detach, LLEGR, this._m);
+    if (detach) { this._mKneeR.copy(this._m); this._writeStubs(i, detach); }
+  }
+
+  // place an exposed-bone stub at each severed-limb wound (neck/shoulder/elbow/knee)
+  _writeStubs(i, detach) {
+    const b = i * this.STUBS, B = this.boneMesh, hid = this._hidden;
+    B.setMatrixAt(b + 0, (detach & (1 << HEAD)) ? this._mNeck : hid);
+    B.setMatrixAt(b + 1, (detach & (1 << UARML)) ? this._mShL : (detach & (1 << LARML)) ? this._mElbowL : hid);
+    B.setMatrixAt(b + 2, (detach & (1 << UARMR)) ? this._mShR : (detach & (1 << LARMR)) ? this._mElbowR : hid);
+    B.setMatrixAt(b + 3, (detach & (1 << LLEGL)) ? this._mKneeL : hid);
+    B.setMatrixAt(b + 4, (detach & (1 << LLEGR)) ? this._mKneeR : hid);
+    this._bonesDirty = true;
   }
   _lm(ox, oy, oz, rx, ry, rz) {
     this._e.set(rx, ry, rz); this._q.setFromEuler(this._e); this._v.set(ox, oy, oz);
@@ -412,6 +449,7 @@ export class Zombies {
       }
     }
     this._flush();
+    if (this._bonesDirty) { this.boneMesh.instanceMatrix.needsUpdate = true; this._bonesDirty = false; }
     this._debrisStep(dt);
 
     if (attacking > 0) {

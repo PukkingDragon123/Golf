@@ -86,8 +86,14 @@ const r = await page.evaluate(() => {
   sh.drag = 1.6; sh.gravityMul = 0.8; sh.restitution = 0; sh.dmg = 5; sh.spin.set(0, 0, 0);
   sh.mesh.material = ctx.golf.shellMat; sh.mesh.scale.setScalar(1.8); sh.mesh.visible = true;
   sh.mesh.position.set(0, 16, -34); sh.vel.set(0, -22, 0);
-  for (let k = 0; k < 120; k++) ctx.golf.update(1 / 60, true);
+  for (let k = 0; k < 90; k++) ctx.golf.update(1 / 60, true);
   out.bazuKills = bk0 - ctx.zombies.aliveCount;          // expect several (radius 17)
+  // bone stubs: the dismembered cluster should be mid-ragdoll showing exposed bone now
+  ctx.zombies.update(1 / 60);
+  const bm = ctx.zombies.boneMesh.instanceMatrix.array; let stubs = 0;
+  for (let k = 0; k < bm.length; k += 16) { const sx = Math.hypot(bm[k], bm[k + 1], bm[k + 2]); if (sx > 0.05) stubs++; }
+  out.boneStubsVisible = stubs;                          // expect > 0 (severed wounds expose bone)
+  out.dismembered = ctx.zombies.z.filter((z) => z.dying && z.detach).length;
   // restore default loadout + a fresh wave so downstream sections mirror baseline
   ctx.golf.reset(); ctx.golf.clubIndex = 0;
   ctx.zombies.reset(); ctx.zombies.startWave(1);

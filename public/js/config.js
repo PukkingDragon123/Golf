@@ -156,7 +156,7 @@ export const CONFIG = {
   maxRagdolls: 18,
   ragdollSettle: 1.6,
   ragdollFade: 1.2,
-  maxDebris: 60,
+  maxDebris: 84,
   ballDamage: 1,
   explosionDamage: 5,
   runoverDamage: 4,
@@ -186,13 +186,15 @@ export const CONFIG = {
   crateLife: 24,
   crateCollectRadius: 4.2,
 
-  // ---- Gore ----
+  // ---- Gore (v3: heavier — denser blood, more chunks, exposed bone, longer decals) ----
   gore: {
-    particleCap: 360, particleSize: 1.1, bloodColor: 0x7a0a0a, groundY: 0.06, dropSplatChance: 0.04,
-    burstBase: 9, burstSpeed: 16, decalRes: 1024, decalWorldSize: 220, decalY: 0.05,
-    splatBaseRadiusPx: 23, inkFadeThreshold: 70, fadeInterval: 0.8, fadeAlpha: 0.04,
-    chunkCap: 48, chunkScale: 0.5, chunkSpeed: 7, chunkLife: 2.2, chunkGroundY: 0.32,
-    chunkColor: 0x8c1414, chunksPerKill: 2,
+    particleCap: 560, particleSize: 1.15, bloodColor: 0x7a0a0a, groundY: 0.06, dropSplatChance: 0.06,
+    burstBase: 13, burstSpeed: 18, decalRes: 1024, decalWorldSize: 220, decalY: 0.05,
+    splatBaseRadiusPx: 26, inkFadeThreshold: 130, fadeInterval: 1.0, fadeAlpha: 0.035,
+    chunkCap: 80, chunkScale: 0.5, chunkSpeed: 8, chunkLife: 2.6, chunkGroundY: 0.32,
+    chunkColor: 0x8c1414, chunksPerKill: 3,
+    // arterial spurt from a fresh stump + exposed bone stub colour/size
+    spurtN: 14, spurtSpeed: 12, boneColor: 0xe9e3d2, stubLen: 0.52, stubR0: 0.10, stubR1: 0.19,
   },
 
   // ---- Survivors / tower-defense ----
