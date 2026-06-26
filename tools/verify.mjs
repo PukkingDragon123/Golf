@@ -189,6 +189,24 @@ await page.evaluate(() => {
 });
 await page.screenshot({ path: 'tools/shot_drive.png' });
 
+// long-run stability: ~90s across waves, firing + building, watch for NaN / runaway pools
+const stress = await page.evaluate(() => {
+  const { ctx, game } = window.GOLFZ;
+  game.start();
+  for (let i = 0; i < 5400; i++) {
+    game.step(1 / 60);
+    if (i % 24 === 0 && game.ammo > 0) { ctx.golf.aimYaw = Math.PI + Math.sin(i * 0.013) * 1.2; ctx.golf.aimPitch = 0.12; ctx.golf.fire(0.85); }
+    if (i % 540 === 0) { game.survivors += 3; ctx.survivors.buildMode = true; ctx.survivors.selectedPost = Math.floor(i / 540) % 12; ctx.survivors.pendingBuild = 'turret'; ctx.survivors.confirmBuild(); ctx.survivors.buildMode = false; }
+    if (game.state !== 'playing') break;
+  }
+  let alive = 0, dy = 0; for (const z of ctx.zombies.z) { if (z.alive) alive++; if (z.dying) dy++; }
+  let proj = 0; for (const p of ctx.survivors.proj) if (p.active) proj++;
+  let balls = 0; for (const b of ctx.golf.balls) if (b.active) balls++;
+  const nanPos = !(isFinite(ctx.player.pos.x) && isFinite(ctx.player.pos.y) && isFinite(ctx.player.pos.z));
+  return { endState: game.state, wave: game.wave, score: game.score, alive, dying: dy, proj, balls, nanPos };
+});
+console.log('STRESS', JSON.stringify(stress));
+
 console.log('--- ERRORS (' + errors.length + ') ---'); errors.slice(0, 40).forEach((e) => console.log(e));
 console.log('--- WARNINGS (' + warns.length + ') ---'); warns.slice(0, 10).forEach((w) => console.log(w));
 
