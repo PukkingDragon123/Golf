@@ -421,6 +421,19 @@ export class Zombies {
       if (Math.random() < dt * 1.5) this.ctx.audio.groan();
     } else if (this.aliveCount > 0 && Math.random() < dt * 0.5) this.ctx.audio.groan();
 
+    // cart-claw damage when the player is down on the street
+    const pl = this.ctx.player;
+    if (pl.region !== 2) {
+      const cr2 = CONFIG.cartClawRadius * CONFIG.cartClawRadius; let clawing = 0;
+      for (const z of this.z) { if (!z.alive) continue; const dx = z.x - pl.pos.x, dz = z.zz - pl.pos.z; if (dx * dx + dz * dz < cr2) clawing++; }
+      if (clawing > 0) {
+        pl.health -= clawing * CONFIG.cartClawDamage * dt; pl.clawT = 0.25;
+        this.ctx.game.addShake(CONFIG.shake.shakeClaw * dt * clawing);
+        if (pl.health <= 0) { pl.health = 0; this.ctx.game.gameOver(); }
+        if (Math.random() < dt * 4) this.ctx.audio.hit();
+      }
+    }
+
     if (this.waveActive && this.toSpawn === 0 && this.aliveCount === 0) {
       this.waveActive = false; this.ctx.game.onWaveCleared();
     }

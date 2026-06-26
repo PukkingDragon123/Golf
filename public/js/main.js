@@ -279,4 +279,4 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
-window.GOLFZ = { game, ctx, renderer, scene, camera };
+window.GOLFZ = { game, ctx, renderer, scene, camera, hud };

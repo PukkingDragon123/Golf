@@ -90,20 +90,46 @@ export function buildWorld(scene, assets, renderer) {
   roof.receiveShadow = true; roof.castShadow = true;
   scene.add(roof);
 
-  // parapet wall around the roof edge
+  // parapet walls (3 solid edges + a split ramp-side edge) + the ramp
   const parapetMat = pbrMaterial(THREE, assets.roof, { repeat: [8, 1], roughness: 0.95, aniso });
   const ph = 1.6, pt = 0.8;
-  const edges = [
-    [0, roofY + 1.2 + ph / 2, half + 2, towerFootprint, ph, pt],
-    [0, roofY + 1.2 + ph / 2, -(half + 2), towerFootprint, ph, pt],
-    [half + 2, roofY + 1.2 + ph / 2, 0, pt, ph, towerFootprint],
-    [-(half + 2), roofY + 1.2 + ph / 2, 0, pt, ph, towerFootprint],
+  const edgeZ = half + 2;
+  const RP = CONFIG.ramp;
+  const rs = RP.side;
+  const solidEdges = [
+    [0, roofY + 1.2 + ph / 2, -edgeZ * rs, towerFootprint, ph, pt],
+    [edgeZ, roofY + 1.2 + ph / 2, 0, pt, ph, towerFootprint],
+    [-edgeZ, roofY + 1.2 + ph / 2, 0, pt, ph, towerFootprint],
   ];
-  for (const [x, y, z, w, h, d] of edges) {
+  for (const [x, y, z, w, h, d] of solidEdges) {
     const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), parapetMat);
-    wall.position.set(x, y, z);
-    wall.castShadow = true; wall.receiveShadow = true;
-    scene.add(wall);
+    wall.position.set(x, y, z); wall.castShadow = true; wall.receiveShadow = true; scene.add(wall);
+  }
+  // ramp-side parapet: two segments leaving the ramp mouth open
+  const gap = RP.width + 1, segW = (towerFootprint - gap) / 2;
+  for (const sx of [-1, 1]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(segW, ph, pt), parapetMat);
+    wall.position.set(sx * (gap / 2 + segW / 2), roofY + 1.2 + ph / 2, edgeZ * rs);
+    wall.castShadow = true; wall.receiveShadow = true; scene.add(wall);
+  }
+  // the ramp deck down to the street
+  const rampAng = Math.atan2(RP.slopeRise, RP.slopeRun);
+  const inclineLen = Math.hypot(RP.slopeRise, RP.slopeRun);
+  const slabT = 1.2;
+  const rampMat = pbrMaterial(THREE, assets.roof, { repeat: [2, Math.round(inclineLen / 4)], roughness: 0.95, aniso });
+  const midZ = edgeZ + RP.slopeRun / 2, midY = RP.slopeRise / 2;
+  const incline = new THREE.Mesh(new THREE.BoxGeometry(RP.width, slabT, inclineLen), rampMat);
+  incline.rotation.x = -rampAng * rs;
+  incline.position.set(0, midY - 0.55, midZ * rs);
+  incline.receiveShadow = true; incline.castShadow = true; scene.add(incline);
+  const apron = new THREE.Mesh(new THREE.BoxGeometry(RP.width, slabT, RP.apronZ + 2), pbrMaterial(THREE, assets.roof, { repeat: [2, 2], roughness: 0.95, aniso }));
+  apron.position.set(0, roofY + 0.6, (edgeZ - RP.apronZ / 2) * rs);
+  apron.receiveShadow = true; scene.add(apron);
+  for (const sx of [-1, 1]) {
+    const curb = new THREE.Mesh(new THREE.BoxGeometry(0.4, RP.curbH + 0.7, inclineLen), parapetMat);
+    curb.rotation.x = -rampAng * rs;
+    curb.position.set(sx * (RP.width / 2 + 0.2), midY + 0.2, midZ * rs);
+    curb.castShadow = true; scene.add(curb);
   }
 
   // a rooftop AC unit / housing for visual interest (and a shadow caster)

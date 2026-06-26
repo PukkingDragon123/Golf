@@ -94,6 +94,11 @@ export class Effects {
   hit(p) { this._emit(p.x, p.y, p.z, 12, { r: 1, g: 1, b: 0.9, speed: 14, spread: 1, life: 0.35, gravity: 10, up: 2 }); }
   greenPuff(p) { this._emit(p.x, p.y, p.z, 14, { r: 0.5, g: 0.8, b: 0.3, speed: 10, spread: 1, life: 0.6, gravity: 6, up: 3 }); }
   dust(p) { this._emit(p.x, p.y + 0.3, p.z, 6, { r: 0.7, g: 0.62, b: 0.5, speed: 6, spread: 1, life: 0.5, gravity: 2, up: 1 }); }
+  blood(x, y, z, mag = 8) {
+    const n = Math.min(28, 8 + Math.floor(mag));
+    this._emit(x, y, z, n, { r: 0.65, g: 0.08, b: 0.06, speed: 8 + mag * 0.4, spread: 1, life: 0.55, gravity: 22, up: 3 });
+  }
+  exhaust(x, y, z) { this._emit(x, y, z, 3, { r: 0.55, g: 0.55, b: 0.6, speed: 5, spread: 1, life: 0.4, gravity: -2, up: 0.5 }); }
 
   reset() {
     for (let i = 0; i < this.cap; i++) { this.life[i] = 0; this.pos[i * 3 + 1] = -9999; }

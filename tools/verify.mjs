@@ -51,6 +51,18 @@ const r = await page.evaluate(() => {
   out.clubCycle = ctx.golf.cycleClub().label; ctx.golf.clubIndex = 0;
   { const w = {}; ctx.golf.windInfo(w); out.windOk = typeof w.mag === 'number'; }
 
+  // 0b) vehicle: surface regions (roof/ramp/ground) + run-over kill+score
+  out.surf = [ctx.player._surfaceAt(0, 8).region, ctx.player._surfaceAt(0, 28).region, ctx.player._surfaceAt(0, 60).region];
+  ctx.zombies.spawn('shambler');
+  const tz = ctx.zombies.z.find((z) => z.alive);
+  tz.x = 0; tz.zz = -60; tz.speed = 0; tz.hitT = 0; tz.hp = 1;
+  ctx.player.pos.set(0, 0, -54); ctx.player.region = 0; ctx.player.heading = Math.PI; ctx.player.speed = 18; ctx.player._fwd.set(0, 0, -1);
+  const rs0 = game.score;
+  ctx.player.runOverPass(1 / 60);
+  out.ranOver = tz.dying || !tz.alive;
+  out.runScore = game.score - rs0;
+  ctx.player.returnToRoof();
+
   // 1) spawn the wave
   for (let i = 0; i < 480; i++) game.step(1 / 60);
   out.spawned = countAlive(); out.toSpawn = ctx.zombies.toSpawn;
@@ -119,6 +131,19 @@ const r = await page.evaluate(() => {
 });
 console.log('RUN', JSON.stringify(r, null, 0));
 await page.screenshot({ path: 'tools/shot_game.png' });
+
+// driving screenshot: cart on the street facing the horde, ground chase cam
+await page.evaluate(() => {
+  const { ctx, game, hud, camera } = window.GOLFZ;
+  game.state = 'playing'; game.health = 1000; hud.startPlaying();
+  let i = 0; for (const z of ctx.zombies.z) { if (!z.alive) continue; const a = (i++ / 9) * Math.PI * 2, rd = 46 + (i % 4) * 7; z.x = Math.sin(a) * rd; z.zz = Math.cos(a) * rd; z.speed = 0; z.atBase = false; }
+  ctx.player.pos.set(8, 0, 56); ctx.player.region = 0; ctx.player.heading = Math.PI; ctx.player.speed = 0;
+  ctx.player.root.position.copy(ctx.player.pos); ctx.player.root.rotation.set(0, Math.PI, 0);
+  ctx.golf.aimYaw = Math.PI; ctx.golf.aimPitch = 0.0; ctx.golf._g = 1;
+  for (let k = 0; k < 24; k++) ctx.golf.updateCamera(camera, 0.2);
+  ctx.postfx.render(0.05);
+});
+await page.screenshot({ path: 'tools/shot_drive.png' });
 
 console.log('--- ERRORS (' + errors.length + ') ---'); errors.slice(0, 40).forEach((e) => console.log(e));
 console.log('--- WARNINGS (' + warns.length + ') ---'); warns.slice(0, 10).forEach((w) => console.log(w));
