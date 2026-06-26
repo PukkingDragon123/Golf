@@ -38,6 +38,19 @@ const r = await page.evaluate(() => {
   const countAlive = () => ctx.zombies.z.reduce((n, z) => n + (z.alive ? 1 : 0), 0);
   const out = {};
 
+  // 0) golf physics: full-power flat carry per club (driver>iron>wedge), via the shared preview integrator
+  ctx.golf.wind.set(0, 0, 0); ctx.golf.spinMode = 'default'; ctx.golf.aimYaw = Math.PI; ctx.golf.aimPitch = 0.1;
+  ctx.golf.charging = true; ctx.golf.power = 100;
+  const so = ctx.player.shootOrigin; const carry = [];
+  for (let ci = 0; ci < 3; ci++) {
+    ctx.golf.clubIndex = ci; ctx.golf.updatePreview(true);
+    carry.push(Math.round(Math.hypot(ctx.golf.marker.position.x - so.x, ctx.golf.marker.position.z - so.z)));
+  }
+  ctx.golf.charging = false; ctx.golf.clubIndex = 0;
+  out.carry = carry; // expect descending
+  out.clubCycle = ctx.golf.cycleClub().label; ctx.golf.clubIndex = 0;
+  { const w = {}; ctx.golf.windInfo(w); out.windOk = typeof w.mag === 'number'; }
+
   // 1) spawn the wave
   for (let i = 0; i < 480; i++) game.step(1 / 60);
   out.spawned = countAlive(); out.toSpawn = ctx.zombies.toSpawn;

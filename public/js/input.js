@@ -61,11 +61,23 @@ export class Input {
     if (down && (e.code === 'KeyQ' || e.code === 'KeyE')) this.handlers.useItem?.();
     if (down && (e.code === 'KeyP' || e.code === 'Escape')) this.handlers.pause?.();
     if (down && e.code === 'KeyM') this.handlers.mute?.();
+    if (down && e.code === 'KeyC') this.handlers.cycleClub?.();
+    if (down && e.code === 'KeyV') this.handlers.cycleSpin?.();
+    if (down && e.code === 'KeyR') this.handlers.toRoof?.();
+    if (down && (e.code === 'KeyB' || e.code === 'Tab')) this.handlers.buildToggle?.();
+    if (down && e.code === 'BracketLeft') this.handlers.buildCycle?.(-1);
+    if (down && e.code === 'BracketRight') this.handlers.buildCycle?.(1);
+    if (down && e.code === 'Enter') this.handlers.buildConfirm?.();
+    if (down && e.code === 'KeyX') this.handlers.buildSell?.();
   }
 
-  // SWING / ITEM on-screen buttons call these
+  // SWING / ITEM / CLUB / SPIN / BOOST on-screen buttons call these
   touchCharge(down) { this._fire(down); }
   touchItem() { this.handlers.useItem?.(); }
+  touchClub() { this.handlers.cycleClub?.(); }
+  touchSpin() { this.handlers.cycleSpin?.(); }
+  touchBoost(down) { this._touchBoost = down; }
+  touchBuild() { this.handlers.buildToggle?.(); }
 
   _touch(e, phase) {
     if (!this.enabled) return;
@@ -110,6 +122,15 @@ export class Input {
     const st = gp.buttons[9] && gp.buttons[9].pressed;
     if (st && !this._padStart) this.handlers.pause?.();
     this._padStart = st;
+    const lb = gp.buttons[4] && gp.buttons[4].pressed;
+    if (lb && !this._padLB) this.handlers.cycleClub?.(); this._padLB = lb;
+    const du = gp.buttons[12] && gp.buttons[12].pressed;
+    if (du && !this._padDU) this.handlers.cycleSpin?.(); this._padDU = du;
+    const y = gp.buttons[3] && gp.buttons[3].pressed;
+    if (y && !this._padY) this.handlers.buildToggle?.(); this._padY = y;
+    const dd = gp.buttons[13] && gp.buttons[13].pressed;
+    if (dd && !this._padDD) this.handlers.toRoof?.(); this._padDD = dd;
+    if (gp.buttons[6] && gp.buttons[6].pressed) this.drive.boost = true; // LT
   }
 
   // call once per frame; fills this.drive and this.aim
@@ -134,6 +155,7 @@ export class Input {
 
     this.drive.throttle = clamp(throttle, -1, 1);
     this.drive.steer = clamp(steer, -1, 1);
+    this.drive.boost = this.held.has('ShiftLeft') || this.held.has('ShiftRight') || !!this._touchBoost;
     this.aim.dyaw = dyaw; this.aim.dpitch = dpitch;
     this._gamepad(dt);
     this.drive.throttle = clamp(this.drive.throttle, -1, 1);

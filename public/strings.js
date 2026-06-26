@@ -51,4 +51,23 @@ export const STR = {
 
   swing: 'SWING',
   item: 'ITEM',
+
+  // v2 — clubs / spin / wind
+  hudWind: 'WIND',
+  spinBack: 'BACKSPIN', spinNeutral: '—', spinTop: 'TOPSPIN',
+  ctrlClubDesktop: 'C — club · V — spin',
+  ctrlClubTouch: 'CLUB / SPIN — change shot',
+  // v2 — cart / boost
+  hudCart: 'CART', hudBoost: 'BOOST',
+  gameOverCart: 'The cart was overrun.',
+  ctrlBoostDesktop: 'Shift — boost · R — back to roof (drive the ramp down)',
+  ctrlBoostTouch: 'BOOST — nitro · drive down the ramp',
+  // v2 — survivors / tower defense
+  hudSurvivors: 'SURVIVORS',
+  survFreed: 'SURVIVOR FREED', noSurvivors: 'no survivors to deploy',
+  builtTurret: 'DEPLOYED', wallDown: 'BARRICADE DOWN',
+  buildTurret: 'TURRET', buildSpotter: 'SPOTTER', buildBarricade: 'BARRICADE',
+  buildUpgrade: 'UPGRADE', buildSellLbl: 'SELL', buildPost: 'POST',
+  ctrlBuildDesktop: 'B — build · [ ] choose · Enter place · X sell',
+  ctrlBuildTouch: 'BUILD — deploy survivors at posts',
 };

@@ -93,6 +93,43 @@
               border:2px dashed rgba(255,255,255,.25); z-index:22; }
   body.touch #power-wrap { right:14px; }
 
+  /* ---------- v2 hud: loadout / wind / cart / boost / build ---------- */
+  #loadout { position:absolute; top:72px; left:18px; display:flex; gap:10px; align-items:center;
+    padding:6px 12px; background:var(--panel); border:1px solid var(--line); border-radius:10px; backdrop-filter:blur(6px); }
+  #club-name { font-weight:800; letter-spacing:.05em; color:var(--warm); }
+  #spin-mode { font-size:11px; letter-spacing:.1em; opacity:.85; padding:2px 7px; border-radius:6px; background:rgba(0,0,0,.3); }
+  #wind { position:absolute; top:72px; left:190px; display:flex; gap:8px; align-items:center;
+    padding:6px 12px; background:var(--panel); border:1px solid var(--line); border-radius:10px; backdrop-filter:blur(6px); }
+  #wind-arrow { width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent;
+    border-bottom:15px solid var(--warm); transform-origin:50% 65%; transition:transform .25s, border-bottom-color .3s; }
+  #wind-str { font-size:11px; letter-spacing:.1em; opacity:.85; }
+  #integrity-track { height:6px; border-radius:5px; background:rgba(0,0,0,.5); border:1px solid var(--line); overflow:hidden; margin-top:4px; }
+  #integrity-bar { height:100%; width:0%; background:linear-gradient(90deg,#8a5a3a,#caa06a); transition:width .2s; }
+  #cart-wrap { position:absolute; left:18px; bottom:78px; width:min(34vw,260px); display:none; }
+  #cart-wrap.on { display:block; }
+  #cart-track { height:10px; border-radius:6px; background:rgba(0,0,0,.5); border:1px solid var(--line); overflow:hidden; }
+  #cart-bar { height:100%; width:100%; background:linear-gradient(90deg,#9cd6ff,#4cc6ff); transition:width .15s, background .3s; }
+  #boost-track { height:6px; border-radius:5px; background:rgba(0,0,0,.5); border:1px solid var(--line); overflow:hidden; margin-top:3px; }
+  #boost-bar { height:100%; width:0%; background:linear-gradient(90deg,#ffe08a,#ff8a3a); }
+  .chip { position:absolute; width:62px; height:44px; border-radius:12px; font-size:11px; }
+  #btn-club { right:26px; bottom:214px; }
+  #btn-spin { right:96px; bottom:214px; }
+  #btn-build { right:26px; bottom:266px; border-color:#39b6ff; }
+  #btn-boost { left:172px; bottom:40px; border-color:#ffb07a; }
+  #build { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:30; display:none;
+    flex-direction:column; gap:8px; align-items:center; padding:12px 18px; background:var(--panel);
+    border:1px solid var(--line); border-radius:14px; backdrop-filter:blur(6px); pointer-events:auto; }
+  #build.on { display:flex; }
+  .build-row { display:flex; gap:8px; align-items:center; }
+  .build-row .ui-btn.bstep { position:static; width:auto; height:auto; padding:6px 12px; border-radius:10px; font-size:16px; }
+  #build-post { font-weight:800; letter-spacing:.08em; min-width:84px; text-align:center; }
+  .build-chip { padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:rgba(0,0,0,.3);
+    font-weight:800; font-size:13px; cursor:pointer; pointer-events:auto; color:#fff; }
+  .build-chip.sel { border-color:#fff; box-shadow:0 0 10px rgba(255,255,255,.4); }
+  .build-chip.disabled { opacity:.4; pointer-events:none; }
+  #build-status { font-size:12px; opacity:.85; letter-spacing:.04em; }
+  #vignette.hurt { background:radial-gradient(ellipse at 50% 42%, rgba(0,0,0,0) 30%, rgba(150,0,0,0.45) 100%); }
+
   /* ---------- screens ---------- */
   .screen { position:fixed; inset:0; z-index:40; display:none; flex-direction:column; align-items:center; justify-content:center;
             text-align:center; padding:24px; background:radial-gradient(ellipse at 50% 30%, rgba(20,14,9,.55), rgba(8,6,4,.85));
@@ -126,12 +163,21 @@
     <div id="topbar">
       <div><div class="label" id="lbl-score">Score</div><div class="val" id="score">0</div></div>
       <div><div class="label" id="lbl-wave">Wave</div><div class="val" id="wave">1</div></div>
+      <div><div class="label" id="lbl-survivors">Survivors</div><div class="val" id="survivors">0</div></div>
       <div><div class="label" id="lbl-best">Best</div><div class="val" id="best">0</div></div>
     </div>
+    <div id="loadout"><span id="club-name">🏌️ DRIVER</span><span id="spin-mode">—</span></div>
+    <div id="wind"><div id="wind-arrow"></div><span id="wind-str">CALM</span></div>
     <div id="ammo">BALLS 18</div>
     <div id="health-wrap">
       <div class="label" id="lbl-health">Tower</div>
       <div id="health-track"><div id="health-bar"></div></div>
+      <div id="integrity-track"><div id="integrity-bar"></div></div>
+    </div>
+    <div id="cart-wrap">
+      <div class="label" id="lbl-cart">Cart</div>
+      <div id="cart-track"><div id="cart-bar"></div></div>
+      <div id="boost-track"><div id="boost-bar"></div></div>
     </div>
     <div id="powerups">
       <div class="pu" id="pu-explosive" style="display:none">💥 0</div>
@@ -146,8 +192,22 @@
 
     <div id="touch">
       <div id="joy-hint"></div>
+      <div class="ui-btn chip" id="btn-club">CLUB</div>
+      <div class="ui-btn chip" id="btn-spin">SPIN</div>
+      <div class="ui-btn chip" id="btn-boost">BOOST</div>
+      <div class="ui-btn chip" id="btn-build">BUILD</div>
       <div class="ui-btn" id="btn-item">ITEM</div>
       <div class="ui-btn" id="btn-swing">SWING</div>
+    </div>
+
+    <div id="build">
+      <div class="build-row">
+        <button class="ui-btn bstep" id="build-prev">◀</button>
+        <span id="build-post">POST 1</span>
+        <button class="ui-btn bstep" id="build-next">▶</button>
+      </div>
+      <div class="build-row" id="build-types"></div>
+      <div id="build-status"></div>
     </div>
   </div>
 
